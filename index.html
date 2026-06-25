@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SkySafe SMS — Business Aviation Safety Management System</title>
+<meta name="description" content="ICAO Annex 19 Safety Management System for business aviation operators.">
+<meta name="theme-color" content="#0f1722">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SkySafe SMS">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#0f1722; --panel:#16212e; --panel2:#1c2a3a; --line:#27384b;
+  --ink:#e7eef6; --muted:#90a4ba; --soft:#b8c6d8;
+  --brand:#2f7de1; --brand2:#1d5fb8; --accent:#36c6a0;
+  --green:#28a86b; --amber:#e6a817; --orange:#e8772e; --red:#e0484b; --crit:#b3263a;
+  --chip:#22344a; --shadow:0 6px 24px rgba(0,0,0,.35);
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+button{font-family:inherit;cursor:pointer}
+a{color:var(--brand)}
+h1,h2,h3,h4{margin:0 0 .4em;font-weight:650;letter-spacing:.2px}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.hidden{display:none!important}
+
+/* layout */
+#app{display:flex;min-height:100vh}
+#sidebar{width:236px;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.brand .logo{display:flex;align-items:center;gap:10px;font-weight:750;font-size:16px}
+.brand .logo svg{flex:none}
+.brand .tag{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.3px}
+nav{padding:10px 8px;flex:1;overflow:auto}
+.navsec{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+  padding:14px 12px 6px}
+.navitem{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  color:var(--soft);font-weight:550;font-size:13.5px;border:none;background:none;width:100%;text-align:left}
+.navitem:hover{background:var(--panel2);color:var(--ink)}
+.navitem.active{background:var(--brand);color:#fff}
+.navitem .ic{width:18px;text-align:center;font-size:15px}
+.navitem .badge{margin-left:auto;background:var(--chip);color:var(--soft);
+  border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600}
+.navitem.active .badge{background:rgba(255,255,255,.22);color:#fff}
+.sidefoot{padding:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+
+#main{flex:1;display:flex;flex-direction:column;min-width:0}
+header.top{display:flex;align-items:center;gap:14px;padding:12px 22px;
+  background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+header.top .ttl{font-size:17px;font-weight:680}
+header.top .crumb{font-size:12px;color:var(--muted)}
+header.top .sp{flex:1}
+.rolebox{display:flex;align-items:center;gap:8px}
+.rolebox label{font-size:11px;color:var(--muted)}
+select,input,textarea{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand)}
+.content{padding:22px;max-width:1200px;width:100%}
+
+/* buttons */
+.btn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand2)}
+.btn.ghost{background:none}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.danger{color:#fff;background:var(--red);border-color:var(--red)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.right{margin-left:auto}
+
+/* cards */
+.grid{display:grid;gap:16px}
+.cards{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.kpi{display:flex;flex-direction:column;gap:6px}
+.kpi .v{font-size:30px;font-weight:740;line-height:1}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi .d{font-size:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:18px}
+.panel h3{display:flex;align-items:center;gap:8px}
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.section-head h2{margin:0}
+.section-head .sp{flex:1}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:.5px;padding:9px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--panel2)}
+.clickrow{cursor:pointer}
+
+/* chips / badges */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;
+  font-size:11.5px;font-weight:650;white-space:nowrap}
+.chip.gray{background:var(--chip);color:var(--soft)}
+.chip.blue{background:rgba(47,125,225,.18);color:#7fb2f4}
+.chip.green{background:rgba(40,168,107,.18);color:#5fd99c}
+.chip.amber{background:rgba(230,168,23,.18);color:#f0c24f}
+.chip.orange{background:rgba(232,119,46,.2);color:#f0a266}
+.chip.red{background:rgba(224,72,75,.2);color:#f08a8c}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* risk cells */
+.riskcell{font-weight:700;color:#0c121a;border-radius:6px;padding:3px 8px;display:inline-block;min-width:34px;text-align:center}
+.r-low{background:#36c08a}.r-med{background:#e6c029}.r-high{background:#e8772e}.r-ext{background:#e0484b;color:#fff}
+
+/* matrix */
+.matrix{border-collapse:separate;border-spacing:3px}
+.matrix td,.matrix th{text-align:center;padding:0;border:none}
+.mcell{width:70px;height:46px;border-radius:6px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#0c121a;font-weight:700;cursor:default;position:relative}
+.mcell .mn{font-size:10px;font-weight:600;opacity:.8}
+.mcell .cnt{position:absolute;top:3px;right:5px;font-size:10px;background:rgba(0,0,0,.25);
+  color:#fff;border-radius:10px;padding:0 5px}
+.maxis{font-size:11px;color:var(--muted);font-weight:600}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(6,10,16,.66);display:flex;align-items:flex-start;
+  justify-content:center;padding:40px 16px;z-index:100;overflow:auto}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:100%;
+  max-width:680px;box-shadow:var(--shadow)}
+.modal.wide{max-width:920px}
+.modal header{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal header h3{margin:0}
+.modal header .x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:22px;line-height:1}
+.modal .body{padding:20px;max-height:70vh;overflow:auto}
+.modal .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+
+/* forms */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--soft);margin-bottom:5px;font-weight:600}
+.field input,.field select,.field textarea{width:100%}
+.field textarea{min-height:80px;resize:vertical}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.hint{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* misc */
+.bar{height:8px;border-radius:6px;background:var(--panel2);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--brand)}
+.timeline{border-left:2px solid var(--line);margin-left:6px;padding-left:16px}
+.tl{position:relative;padding-bottom:14px}
+.tl::before{content:"";position:absolute;left:-23px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--brand)}
+.tl .when{font-size:11px;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:40px}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--accent);color:#06241c;
+  padding:12px 18px;border-radius:10px;font-weight:650;box-shadow:var(--shadow);z-index:200;
+  opacity:0;transform:translateY(10px);transition:.25s}
+.toast.show{opacity:1;transform:none}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 14px;font-size:13px}
+.kv .k{color:var(--muted)}
+.pill-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.pill-tabs button{background:var(--panel2);border:1px solid var(--line);color:var(--soft);
+  padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:600}
+.pill-tabs button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.progress-ring{transform:rotate(-90deg)}
+@media(max-width:820px){#sidebar{display:none}.f2,.f3{grid-template-columns:1fr}}
+
+/* login */
+#login{position:fixed;inset:0;background:radial-gradient(1200px 600px at 70% -10%,#1d3a5f,#0c1320);
+  display:flex;align-items:center;justify-content:center;z-index:500;padding:20px}
+.loginCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:100%;
+  max-width:400px;padding:28px;box-shadow:var(--shadow)}
+.loginCard .lg{display:flex;align-items:center;gap:10px;font-weight:750;font-size:19px;margin-bottom:2px}
+.loginCard .sub{color:var(--muted);font-size:12px;margin-bottom:20px}
+.quickUser{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;color:var(--ink)}
+.quickUser:hover{border-color:var(--brand)}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:13px;color:#fff;flex:none}
+.quickUser .nm{font-weight:600;font-size:13.5px}
+.quickUser .rl{font-size:11px;color:var(--muted)}
+.quickUser .go{margin-left:auto;color:var(--muted)}
+
+/* user menu in header */
+.userbox{display:flex;align-items:center;gap:10px;position:relative}
+.userbox .who{text-align:right;line-height:1.2}
+.userbox .who .nm{font-size:13px;font-weight:600}
+.userbox .who .rl{font-size:11px;color:var(--muted)}
+.umenu{position:absolute;top:46px;right:0;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow);min-width:180px;overflow:hidden;z-index:40}
+.umenu button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink);
+  padding:10px 14px;font-size:13px}
+.umenu button:hover{background:var(--panel2)}
+.roleTag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:6px}
+.rt-admin{background:rgba(47,125,225,.2);color:#7fb2f4}
+.rt-exec{background:rgba(54,198,160,.2);color:#5fd9be}
+.rt-dept{background:rgba(230,168,23,.2);color:#f0c24f}
+.rt-crew{background:var(--chip);color:var(--soft)}
+.rt-audit{background:rgba(180,140,235,.2);color:#c3a3f0}
+
+/* import */
+.dropzone{border:2px dashed var(--line);border-radius:12px;padding:34px;text-align:center;color:var(--muted)}
+.dropzone.drag{border-color:var(--brand);background:var(--panel2)}
+.maprow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin-bottom:8px}
+.banner{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px}
+.banner.info{background:rgba(47,125,225,.12);border:1px solid rgba(47,125,225,.3)}
+.banner.warn{background:rgba(230,168,23,.12);border:1px solid rgba(230,168,23,.35)}
+.offline-pill{font-size:10.5px;padding:2px 9px;border-radius:20px;background:var(--chip);color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 13l9-9 2 2-4 7 5 1 3-3 1.5 1.5L14 19l-2-5-7 4-1-2 7-3-2-2-5 2z" fill="#2f7de1"/><circle cx="12" cy="12" r="11" stroke="#36c6a0" stroke-width="1.2" opacity=".5"/></svg>
+        SkySafe SMS
+      </div>
+      <div class="tag">ICAO Annex 19 · Business Aviation</div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="sidefoot">
+      <div id="orgName">Meridian Jet Operations</div>
+      <div>SMS Maturity: <b id="maturity">Level 3 · Present & Suitable</b></div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <header class="top">
+      <div>
+        <div class="ttl" id="pageTitle">Dashboard</div>
+        <div class="crumb" id="pageCrumb">Safety overview</div>
+      </div>
+      <div class="sp"></div>
+      <span class="offline-pill" id="netPill" title="Connection status">●&nbsp;online</span>
+      <div class="userbox" id="userbox"></div>
+    </header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<div id="login">
+  <div class="loginCard">
+    <div class="lg">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M2 13l9-9 2 2-4 7 5 1 3-3 1.5 1.5L14 19l-2-5-7 4-1-2 7-3-2-2-5 2z" fill="#2f7de1"/><circle cx="12" cy="12" r="11" stroke="#36c6a0" stroke-width="1.2" opacity=".5"/></svg>
+      SkySafe SMS
+    </div>
+    <div class="sub">ICAO Annex 19 · Business Aviation · Sign in to continue</div>
+    <div id="quickUsers"></div>
+    <div class="hint" style="margin-top:14px">Demo build — select a user to explore role-based access. Production uses authenticated accounts on a secure backend.</div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   SkySafe SMS — single-file Safety Management System
+   ICAO Annex 19 four-component framework for business aviation.
+   Data persists in browser localStorage (key: skysafe_sms_v1)
+   ============================================================ */
+
+/* ---------- constants ---------- */
+const LLABELS = ["Frequent","Occasional","Remote","Improbable","Extremely Improbable"]; // 5..1
+const SLABELS = ["Catastrophic","Hazardous","Major","Minor","Negligible"]; // A..E
+const SCODES  = ["A","B","C","D","E"];
+const COMPONENTS = {
+  policy:"Safety Policy & Objectives",
+  srm:"Safety Risk Management",
+  assurance:"Safety Assurance",
+  promotion:"Safety Promotion"
+};
+// ICAO risk index: likelihood (5..1) x severity (A..E). Tolerability bands.
+function riskScore(L, sIdx){ // L:1-5 (5 frequent), sIdx:0-4 (0=Catastrophic)
+  const sevWeight = [5,4,3,2,1][sIdx];
+  return L * sevWeight;
+}
+function riskBand(L, sIdx){
+  const code = L + SCODES[sIdx];
+  // ICAO-style tolerability: intolerable (red), tolerable (amber/yellow), acceptable (green)
+  const intolerable = ["5A","5B","5C","4A","4B","3A"];
+  const tolerable   = ["5D","5E","4C","4D","3B","3C","2A","2B","1A"];
+  if(intolerable.includes(code)) return {band:"ext",label:"Intolerable",cls:"r-ext"};
+  if(tolerable.includes(code))   return {band:"high",label:"Tolerable",cls:"r-high"};
+  // remaining = acceptable; split medium/low by score for nuance
+  const sc = riskScore(L,sIdx);
+  if(sc>=6) return {band:"med",label:"Acceptable",cls:"r-med"};
+  return {band:"low",label:"Acceptable",cls:"r-low"};
+}
+function matrixColor(L,sIdx){return riskBand(L,sIdx).cls;}
+
+const uid = p => (p||"id")+"_"+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-3);
+const today = () => new Date().toISOString().slice(0,10);
+function fmtDate(d){if(!d)return "—";const t=new Date(d);return t.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function daysAgo(d){const n=daysBetween(d,today());return n<=0?"today":n+"d ago";}
+
+/* ---------- store (data-access layer) ----------
+   All persistence funnels through load()/save(). To move to a backend,
+   swap these two functions for API calls and add sync on reconnect —
+   no other module touches storage directly. */
+const KEY="skysafe_sms_v2";
+const SKEY="skysafe_session_v1";
+let DB=null;
+function load(){ try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r);}catch(e){} if(!DB){DB=seed();save();} }
+function save(){ localStorage.setItem(KEY,JSON.stringify(DB)); }
+function resetDB(){ DB=seed();save(); }
+
+/* ---------- identity & role-based access control ---------- */
+const ROLES={
+  admin:  {label:"Safety Manager",        tag:"rt-admin", color:"#2f7de1", perms:["view","manage","admin","audit"]},
+  exec:   {label:"Accountable Executive", tag:"rt-exec",  color:"#36c6a0", perms:["view","audit","accept"]},
+  dept:   {label:"Department Manager",    tag:"rt-dept",  color:"#e6a817", perms:["view","manage"]},
+  crew:   {label:"Front-line Crew",       tag:"rt-crew",  color:"#5a6b80", perms:["crew"]},
+  auditor:{label:"Auditor (read-only)",   tag:"rt-audit", color:"#9b7fd4", perms:["view","audit"]}
+};
+let SESSION=null;          // logged-in user id
+let ROLE="manager";        // coarse view mode derived from role: 'manager' | 'crew'
+let CURRENT="dashboard";
+function currentUser(){return DB&&DB.users?DB.users.find(u=>u.id===SESSION):null;}
+function can(p){const u=currentUser();return u?(ROLES[u.role].perms||[]).includes(p):false;}
+function canEdit(){return can("manage");}
+function deriveRole(){const u=currentUser();ROLE=(u&&u.role==="crew")?"crew":"manager";}
+function initials(n){return n.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();}
+
+/* ---------- audit trail ---------- */
+function audit(action,detail){
+  const u=currentUser();
+  DB.audit.unshift({id:uid("a"),ts:new Date().toISOString(),
+    user:u?u.name:"system",role:u?u.role:"-",action,detail:detail||""});
+  if(DB.audit.length>1000)DB.audit.pop();
+}
+
+/* ---------- authentication ---------- */
+function showLogin(){
+  document.getElementById("login").style.display="flex";
+  const active=DB.users.filter(u=>u.active);
+  document.getElementById("quickUsers").innerHTML=active.map(u=>{
+    const r=ROLES[u.role];
+    return `<button class="quickUser" onclick="doLogin('${u.id}')">
+      <span class="avatar" style="background:${r.color}">${initials(u.name)}</span>
+      <span><span class="nm">${u.name}</span><br><span class="rl">${r.label}</span></span>
+      <span class="go">→</span></button>`;}).join("");
+}
+function doLogin(id){
+  SESSION=id; localStorage.setItem(SKEY,id);
+  const u=currentUser(); u.lastLogin=new Date().toISOString();
+  audit("Signed in"); save();
+  document.getElementById("login").style.display="none";
+  deriveRole(); renderHeader(); buildNav(); route("dashboard");
+}
+function logout(){
+  audit("Signed out"); save(); closeUMenu();
+  SESSION=null; localStorage.removeItem(SKEY);
+  showLogin();
+}
+
+/* ---------- header / user menu ---------- */
+function renderHeader(){
+  const u=currentUser(); if(!u)return; const r=ROLES[u.role];
+  document.getElementById("userbox").innerHTML=`
+    <div class="who"><div class="nm">${u.name}</div>
+      <div class="rl"><span class="roleTag ${r.tag}">${r.label}</span></div></div>
+    <span class="avatar" style="background:${r.color};cursor:pointer" onclick="toggleUMenu(event)">${initials(u.name)}</span>
+    <div class="umenu hidden" id="umenu">
+      ${can("admin")?`<button onclick="closeUMenu();route('users')">User management</button>
+        <button onclick="closeUMenu();route('import')">Import data</button>
+        <button onclick="resetFromMenu()">Reset demo data</button>`:""}
+      <button onclick="logout()">Sign out</button>
+    </div>`;
+}
+function toggleUMenu(e){e.stopPropagation();const m=document.getElementById("umenu");if(m)m.classList.toggle("hidden");}
+function closeUMenu(){const m=document.getElementById("umenu");if(m)m.classList.add("hidden");}
+function resetFromMenu(){closeUMenu();
+  if(confirm("Reset all data to the demo dataset? This clears anything you've added.")){
+    resetDB();SESSION=localStorage.getItem(SKEY);
+    if(!currentUser()){SESSION=null;showLogin();return;}
+    deriveRole();renderHeader();buildNav();route("dashboard");toast("Demo data restored");}}
+
+/* ---------- connectivity indicator ---------- */
+function setupNet(){
+  const upd=()=>{const p=document.getElementById("netPill");if(!p)return;
+    const on=navigator.onLine;p.innerHTML=(on?"●&nbsp;online":"●&nbsp;offline");
+    p.style.color=on?"var(--muted)":"var(--amber)";};
+  window.addEventListener("online",upd);window.addEventListener("offline",upd);upd();}
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ---------- modal ---------- */
+function modal(title, bodyHTML, footHTML, wide){
+  const root=document.getElementById("modalRoot");
+  root.innerHTML=`<div class="overlay" id="ov"><div class="modal ${wide?'wide':''}">
+    <header><h3>${title}</h3><button class="x" onclick="closeModal()">&times;</button></header>
+    <div class="body">${bodyHTML}</div>
+    ${footHTML?`<div class="foot">${footHTML}</div>`:""}
+  </div></div>`;
+  document.getElementById("ov").addEventListener("mousedown",e=>{if(e.target.id==="ov")closeModal();});
+}
+function closeModal(){document.getElementById("modalRoot").innerHTML="";}
+function val(id){const e=document.getElementById(id);return e?e.value.trim():"";}
+
+/* ---------- chips ---------- */
+function statusChip(s){
+  const m={"Open":"blue","Triage":"amber","Under Investigation":"orange","Investigating":"orange",
+    "Mitigating":"orange","Monitoring":"blue","Closed":"green","Accepted":"green","Overdue":"red",
+    "In Progress":"amber","Not Started":"gray","Complete":"green","Verified":"green",
+    "Draft":"gray","Active":"green","Planned":"blue","Current":"green","Due Soon":"amber","Expired":"red"};
+  return `<span class="chip ${m[s]||'gray'}">${s}</span>`;
+}
+function bandChip(L,sIdx){const b=riskBand(L,sIdx);const sc=riskScore(L,sIdx);
+  return `<span class="riskcell ${b.cls}">${L}${SCODES[sIdx]} · ${sc}</span>`;}
+
+document.addEventListener("DOMContentLoaded",init);
+function init(){
+  load();
+  document.getElementById("orgName").textContent=DB.org.name;
+  document.addEventListener("click",closeUMenu);
+  if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js").catch(()=>{});}
+  setupNet();
+  SESSION=localStorage.getItem(SKEY);
+  if(SESSION&&currentUser()&&currentUser().active){
+    document.getElementById("login").style.display="none";
+    deriveRole(); renderHeader(); buildNav(); route("dashboard");
+  } else { SESSION=null; showLogin(); }
+}
+
+function buildNav(){
+  let items;
+  if(ROLE==="crew"){
+    items=[
+      ["GROUP","Overview"],["dashboard","◆","Dashboard",null],
+      ["GROUP","My Safety"],
+      ["report","✎","Submit / My Reports", null],
+      ["mytraining","🎓","My Training", null],
+      ["policy","§","Safety Policy", null]];
+  } else {
+    items=[
+      ["GROUP","Overview"],["dashboard","◆","Dashboard",null],
+      ["GROUP","Safety Risk Management"],
+      ["report","✎","Safety Reports", DB.reports.filter(r=>r.status!=="Closed").length],
+      ["hazards","⚠","Hazard / Risk Register", DB.hazards.filter(h=>h.status!=="Closed").length],
+      ["GROUP","Safety Assurance"],
+      ["audits","✓","Audits & Findings", DB.findings.filter(f=>f.status!=="Verified"&&f.status!=="Closed").length],
+      ["spi","📈","Safety Performance", null],
+      ["GROUP","Policy & Promotion"],
+      ["policy","§","Policy & Accountability", null],
+      ["training","🎓","Training & Promotion", null]];
+    if(can("audit")||can("admin")){
+      items.push(["GROUP","Administration"]);
+      items.push(["audit","🗂","Audit Trail", null]);
+      if(can("admin")){
+        items.push(["users","👤","User Management", DB.users.length]);
+        items.push(["import","⬆","Import Data", null]);
+      }
+    }
+  }
+  const nav=document.getElementById("nav");
+  nav.innerHTML=items.map(it=>{
+    if(it[0]==="GROUP")return `<div class="navsec">${it[1]}</div>`;
+    const [id,ic,label,badge]=it;
+    return `<button class="navitem ${CURRENT===id?'active':''}" data-id="${id}">
+      <span class="ic">${ic}</span><span>${label}</span>
+      ${badge?`<span class="badge">${badge}</span>`:""}</button>`;
+  }).join("");
+  nav.querySelectorAll(".navitem").forEach(b=>b.addEventListener("click",()=>route(b.dataset.id)));
+}
+
+const TITLES={dashboard:["Dashboard","Safety overview"],report:["Safety Reports","Air Safety Reporting · SRM"],
+  hazards:["Hazard / Risk Register","Safety Risk Management"],audits:["Audits & Findings","Safety Assurance"],
+  spi:["Safety Performance","Indicators, targets & alerts"],policy:["Policy & Accountability","Safety Policy & Objectives"],
+  training:["Training & Promotion","Safety Promotion"],mytraining:["My Training","Your SMS training record"],
+  users:["User Management","Accounts, roles & access"],audit:["Audit Trail","Tamper-evident activity log"],
+  import:["Import Data","Migrate records from a previous tool"]};
+
+// pages and the permission required to view them
+const PAGE_PERM={users:"admin",import:"admin",audit:"audit"};
+function route(id){
+  // access control
+  const need=PAGE_PERM[id];
+  if(need&&!can(need)){toast("You don't have access to that area");id="dashboard";}
+  if(ROLE==="crew"&&!["dashboard","report","mytraining","policy"].includes(id))id="dashboard";
+  CURRENT=id;
+  const t=TITLES[id]||["",""];
+  document.getElementById("pageTitle").textContent=t[0];
+  document.getElementById("pageCrumb").textContent=t[1];
+  buildNav();
+  const v=document.getElementById("view");
+  const fn={dashboard:viewDashboard,report:viewReports,hazards:viewHazards,audits:viewAudits,
+    spi:viewSPI,policy:viewPolicy,training:viewTraining,mytraining:viewMyTraining,
+    users:viewUsers,audit:viewAudit,import:viewImport}[id];
+  v.innerHTML = fn?fn():"<div class='empty'>Not found</div>";
+  if(window._afterRender){window._afterRender();window._afterRender=null;}
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function viewDashboard(){
+  if(ROLE==="crew")return crewDashboard();
+  const openReports=DB.reports.filter(r=>r.status!=="Closed").length;
+  const newReports=DB.reports.filter(r=>r.status==="Open"||r.status==="Triage").length;
+  const openHaz=DB.hazards.filter(h=>h.status!=="Closed").length;
+  const intolHaz=DB.hazards.filter(h=>riskBand(h.rL,h.rS).band==="ext").length;
+  const openCAPA=DB.findings.filter(f=>f.status!=="Verified"&&f.status!=="Closed").length;
+  const overdueCAPA=DB.findings.filter(f=>f.status!=="Verified"&&f.status!=="Closed"&&f.due&&f.due<today()).length;
+  const spiAlert=DB.spis.filter(s=>spiStatus(s).alert).length;
+
+  const recent=activityFeed().slice(0,7);
+  return `
+  <div class="grid cards" style="margin-bottom:18px">
+    ${kpi(openReports, "Open Safety Reports", `${newReports} awaiting triage`, openReports?"blue":"green")}
+    ${kpi(openHaz, "Active Hazards", `${intolHaz} intolerable`, intolHaz?"red":"green")}
+    ${kpi(openCAPA, "Open Corrective Actions", `${overdueCAPA} overdue`, overdueCAPA?"red":"amber")}
+    ${kpi(spiAlert, "SPIs in Alert", spiAlert?"target exceeded":"all within target", spiAlert?"orange":"green")}
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start">
+    <div>
+      <div class="panel">
+        <div class="section-head"><h3>⚠ Risk Profile</h3><div class="sp"></div>
+          <button class="btn sm" onclick="route('hazards')">Open register →</button></div>
+        ${miniMatrix()}
+        <div class="legend" style="margin-top:14px">
+          <span><span class="dot" style="background:#36c08a"></span>Acceptable</span>
+          <span><span class="dot" style="background:#e6c029"></span>Acceptable (review)</span>
+          <span><span class="dot" style="background:#e8772e"></span>Tolerable</span>
+          <span><span class="dot" style="background:#e0484b"></span>Intolerable</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h3>📈 Safety Performance Indicators</h3><div class="sp"></div>
+          <button class="btn sm" onclick="route('spi')">Details →</button></div>
+        ${DB.spis.map(spiRow).join("")}
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>SMS Health · ICAO Annex 19</h3>
+        ${componentHealth()}
+      </div>
+      <div class="panel">
+        <h3>Recent Activity</h3>
+        <div class="timeline" style="margin-top:10px">
+          ${recent.map(a=>`<div class="tl"><div>${a.text}</div><div class="when">${a.when} · ${a.who}</div></div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function kpi(v,l,d,color){return `<div class="card kpi">
+  <span class="l">${l}</span><span class="v">${v}</span>
+  <span class="d"><span class="chip ${color}">${d}</span></span></div>`;}
+
+function miniMatrix(){
+  // counts per cell from hazards (residual risk)
+  const counts={};
+  DB.hazards.filter(h=>h.status!=="Closed").forEach(h=>{const k=h.rL+"-"+h.rS;counts[k]=(counts[k]||0)+1;});
+  let html=`<table class="matrix"><tr><td></td>`;
+  SLABELS.forEach((s,i)=>html+=`<th class="maxis">${SCODES[i]}<br><span style="font-weight:400">${s.slice(0,4)}</span></th>`);
+  html+=`</tr>`;
+  for(let L=5;L>=1;L--){
+    html+=`<tr><th class="maxis" style="padding-right:6px;text-align:right">${L}<br><span style="font-weight:400;font-size:9px">${LLABELS[5-L].slice(0,6)}</span></th>`;
+    for(let s=0;s<5;s++){
+      const c=counts[L+"-"+s]||0;const cls=matrixColor(L,s);
+      html+=`<td><div class="mcell ${cls}" title="${L}${SCODES[s]}">${c?`<span class="cnt">${c}</span>`:""}<span class="mn">${L}${SCODES[s]}</span></div></td>`;
+    }
+    html+=`</tr>`;
+  }
+  html+=`</table>`;
+  return html;
+}
+
+function componentHealth(){
+  const scores=componentScores();
+  return Object.entries(COMPONENTS).map(([k,name])=>{
+    const p=scores[k];
+    const col=p>=80?"var(--green)":p>=55?"var(--amber)":"var(--red)";
+    return `<div style="margin:10px 0">
+      <div class="row" style="justify-content:space-between"><span style="font-size:12.5px">${name}</span>
+      <span class="small" style="color:${col};font-weight:700">${p}%</span></div>
+      <div class="bar" style="margin-top:5px"><span style="width:${p}%;background:${col}"></span></div></div>`;
+  }).join("");
+}
+function componentScores(){
+  // simple computed maturity proxies
+  const totF=DB.findings.length||1;
+  const closedF=DB.findings.filter(f=>f.status==="Verified"||f.status==="Closed").length;
+  const trainPct=Math.round(DB.training.records.filter(r=>r.status==="Current").length/(DB.training.records.length||1)*100);
+  const hazMit=DB.hazards.filter(h=>h.mitigations&&h.mitigations.length).length;
+  return {
+    policy: DB.policy.docs.filter(d=>d.status==="Active").length>=3?88:60,
+    srm: Math.min(95, 50+Math.round(hazMit/(DB.hazards.length||1)*45)),
+    assurance: Math.round(closedF/totF*100*0.6+ (DB.spis.length?30:0)),
+    promotion: trainPct
+  };
+}
+
+function crewDashboard(){
+  const me=currentUser()?currentUser().name:"You (Crew)";
+  const myReports=DB.reports.filter(r=>r.reporter===me).slice(0,5);
+  const myTrain=DB.training.records.filter(r=>r.person===me);
+  const due=myTrain.filter(r=>r.status!=="Current");
+  return `
+  <div class="panel" style="background:linear-gradient(120deg,#1d5fb8,#2f7de1);border:none">
+    <h2 style="color:#fff">See something? Say something.</h2>
+    <p style="color:#dce8fb;max-width:560px">Your reports drive our safety management system. Reporting is confidential and non-punitive under our Just Culture policy — we want hazards, not blame.</p>
+    <button class="btn" style="background:#fff;color:#1d5fb8;border:none;font-weight:700" onclick="openReportForm()">＋ Submit a Safety Report</button>
+  </div>
+  <div class="grid cards" style="margin:18px 0">
+    ${kpi(myReports.length,"My Reports","this quarter","blue")}
+    ${kpi(due.length,"Training Due", due.length?"action needed":"all current", due.length?"amber":"green")}
+    ${kpi(DB.policy.docs.filter(d=>d.status==="Active").length,"Policies","current & active","gray")}
+  </div>
+  <div class="panel">
+    <div class="section-head"><h3>My Recent Reports</h3><div class="sp"></div>
+      <button class="btn sm" onclick="route('report')">View all →</button></div>
+    ${myReports.length?reportTable(myReports,true):"<div class='empty'>No reports yet — submit one above.</div>"}
+  </div>`;
+}
+
+/* ---------- activity feed (computed) ---------- */
+function activityFeed(){
+  const items=[];
+  DB.reports.forEach(r=>items.push({d:r.date,when:daysAgo(r.date),who:r.anon?"Anonymous":r.reporter,text:`Safety report <b>${r.id}</b> — ${r.title}`}));
+  DB.hazards.forEach(h=>items.push({d:h.opened,when:daysAgo(h.opened),who:h.owner,text:`Hazard <b>${h.id}</b> logged — ${h.title}`}));
+  DB.findings.forEach(f=>items.push({d:f.raised,when:daysAgo(f.raised),who:f.owner,text:`Finding <b>${f.id}</b> from ${f.source}`}));
+  return items.sort((a,b)=>new Date(b.d)-new Date(a.d));
+}
+function spiRow(s){
+  const st=spiStatus(s);
+  const pct=Math.min(100,Math.round(s.value/(s.target*1.6)*100));
+  return `<div style="margin:12px 0">
+    <div class="row" style="justify-content:space-between">
+      <span style="font-size:13px;font-weight:600">${s.name}</span>
+      <span class="small">${s.value}${s.unit} <span class="muted">/ target ${s.target}${s.unit}</span> ${st.alert?statusChip("Overdue").replace("Overdue",st.label):`<span class="chip green">${st.label}</span>`}</span>
+    </div>
+    <div class="bar" style="margin-top:5px;position:relative">
+      <span style="width:${pct}%;background:${st.alert?'var(--red)':'var(--green)'}"></span>
+    </div></div>`;
+}
+function spiStatus(s){
+  const exceeded = s.dir==="lower" ? s.value>s.target : s.value<s.target;
+  return exceeded?{alert:true,label:"Alert"}:{alert:false,label:"On target"};
+}
+
+/* ============================================================
+   SAFETY REPORTING (ASR) — Safety Risk Management component
+   ============================================================ */
+let reportFilter="all";
+function viewReports(){
+  const isCrew=ROLE==="crew";
+  let list=DB.reports.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(isCrew) list=list.filter(r=>r.reporter==="You"||r.anon||true); // crew sees pool but mainly theirs
+  if(!isCrew && reportFilter!=="all") list=list.filter(r=>r.status===reportFilter);
+  const counts=s=>DB.reports.filter(r=>s==="all"||r.status===s).length;
+  const tabs=isCrew?"":`<div class="pill-tabs">
+    ${["all","Open","Triage","Under Investigation","Closed"].map(s=>
+      `<button class="${reportFilter===s?'active':''}" onclick="reportFilter='${s}';route('report')">${s==='all'?'All':s} <b>${counts(s)}</b></button>`).join("")}
+  </div>`;
+  return `
+  <div class="section-head">
+    <h2>${isCrew?"Submit & track your reports":"Air Safety Report queue"}</h2><div class="sp"></div>
+    <button class="btn primary" onclick="openReportForm()">＋ New Safety Report</button>
+  </div>
+  ${isCrew?`<div class="panel" style="background:var(--panel2)"><b>Just Culture reminder:</b> Reports are confidential and non-punitive. Honest reporting of hazards and errors will not result in disciplinary action.</div>`:""}
+  ${tabs}
+  <div class="panel" style="padding:0;overflow:hidden">
+    ${list.length?reportTable(list):"<div class='empty'>No reports in this view.</div>"}
+  </div>`;
+}
+function reportTable(list,compact){
+  return `<table><thead><tr>
+    <th>ID</th><th>Title</th><th>Type</th>${compact?"":"<th>Reporter</th>"}<th>Risk</th><th>Status</th><th>Reported</th>
+  </tr></thead><tbody>
+  ${list.map(r=>`<tr class="clickrow" onclick="openReport('${r.id}')">
+    <td><b>${r.id}</b></td>
+    <td>${r.title} ${r.linkedHazard?`<span class="chip blue" title="Linked to hazard">⚠ ${r.linkedHazard}</span>`:""}</td>
+    <td><span class="chip gray">${r.type}</span></td>
+    ${compact?"":`<td>${r.anon?'<span class="muted">Anonymous</span>':r.reporter}</td>`}
+    <td>${r.rL?bandChip(r.rL,r.rS):'<span class="muted">—</span>'}</td>
+    <td>${statusChip(r.status)}</td>
+    <td class="small muted">${fmtDate(r.date)}</td>
+  </tr>`).join("")}
+  </tbody></table>`;
+}
+
+function openReportForm(){
+  modal("Submit Safety Report", `
+    <div class="field"><label>Report title *</label><input id="r_title" placeholder="e.g. Unstable approach into KTEB rwy 06"></div>
+    <div class="f2">
+      <div class="field"><label>Report type</label><select id="r_type">
+        <option>Hazard</option><option>Occurrence / Event</option><option>Near-miss</option>
+        <option>Procedure concern</option><option>FOD</option><option>Fatigue</option><option>Maintenance</option><option>Other</option>
+      </select></div>
+      <div class="field"><label>Date of event</label><input type="date" id="r_date" value="${today()}"></div>
+    </div>
+    <div class="f3">
+      <div class="field"><label>Location / Flight</label><input id="r_loc" placeholder="e.g. KTEB / N300MJ"></div>
+      <div class="field"><label>Phase</label><select id="r_phase">
+        <option>Ground</option><option>Taxi</option><option>Takeoff</option><option>Climb</option>
+        <option>Cruise</option><option>Descent</option><option>Approach</option><option>Landing</option><option>Maintenance</option></select></div>
+      <div class="field"><label>Department</label><select id="r_dept">
+        <option>Flight Ops</option><option>Maintenance</option><option>Cabin</option><option>Dispatch / Sched</option><option>Ground Handling</option></select></div>
+    </div>
+    <div class="field"><label>Description — what happened? *</label><textarea id="r_desc" placeholder="Factual account. What did you observe? What were the conditions and contributing factors?"></textarea></div>
+    <div class="field"><label>Suggested mitigation (optional)</label><textarea id="r_sug" placeholder="Your idea to prevent recurrence"></textarea></div>
+    <div class="f2">
+      <div class="field"><label>Reporter name</label><input id="r_name" value="${currentUser()?currentUser().name:''}" placeholder="Your name"></div>
+      <div class="field"><label>Confidentiality</label><select id="r_anon">
+        <option value="named">Named (allows follow-up)</option>
+        <option value="anon">Submit anonymously</option></select></div>
+    </div>
+  `, `<button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="submitReport()">Submit report</button>`, true);
+}
+function submitReport(){
+  const title=val("r_title"),desc=val("r_desc");
+  if(!title||!desc){toast("Title and description are required");return;}
+  const anon=val("r_anon")==="anon";
+  const r={id:"SR-"+ (1000+DB.seq.report++), title, type:val("r_type"), date:val("r_date"),
+    location:val("r_loc"), phase:val("r_phase"), dept:val("r_dept"), desc, suggestion:val("r_sug"),
+    reporter:anon?"":(val("r_name")||"Unknown"), anon, status:"Open", rL:null, rS:null,
+    linkedHazard:null, classification:"", invNotes:"",
+    log:[{d:today(),who:anon?"Anonymous":(val("r_name")||"Reporter"),text:"Report submitted"}]};
+  DB.reports.unshift(r); audit("Submitted safety report",r.id+" — "+r.title); save(); closeModal();
+  toast("Report "+r.id+" submitted — thank you");
+  route("report");
+}
+
+function openReport(id){
+  const r=DB.reports.find(x=>x.id===id); if(!r)return;
+  const isMgr=canEdit();
+  const body=`
+    <div class="kv" style="margin-bottom:16px">
+      <div class="k">Report ID</div><div><b>${r.id}</b> ${statusChip(r.status)}</div>
+      <div class="k">Type</div><div>${r.type}</div>
+      <div class="k">Event date</div><div>${fmtDate(r.date)}</div>
+      <div class="k">Location / Phase</div><div>${r.location||"—"} · ${r.phase||"—"}</div>
+      <div class="k">Department</div><div>${r.dept||"—"}</div>
+      <div class="k">Reporter</div><div>${r.anon?'<span class="muted">Anonymous (confidential)</span>':r.reporter}</div>
+      ${r.rL?`<div class="k">Risk assessment</div><div>${bandChip(r.rL,r.rS)} ${riskBand(r.rL,r.rS).label}</div>`:""}
+      ${r.classification?`<div class="k">Classification</div><div>${r.classification}</div>`:""}
+      ${r.linkedHazard?`<div class="k">Linked hazard</div><div><a onclick="closeModal();route('hazards');setTimeout(()=>openHazard('${r.linkedHazard}'),60)">${r.linkedHazard} →</a></div>`:""}
+    </div>
+    <div class="field"><label>Description</label><div class="card">${r.desc}</div></div>
+    ${r.suggestion?`<div class="field"><label>Reporter's suggested mitigation</label><div class="card">${r.suggestion}</div></div>`:""}
+    ${isMgr?managerReportPanel(r):""}
+    <div class="field"><label>Activity log</label><div class="timeline" style="margin-top:8px">
+      ${r.log.map(l=>`<div class="tl"><div>${l.text}</div><div class="when">${fmtDate(l.d)} · ${l.who}</div></div>`).join("")}
+    </div></div>`;
+  const foot=isMgr?`
+    <button class="btn ghost" onclick="closeModal()">Close</button>
+    ${r.status!=="Closed"?`<button class="btn" onclick="advanceReport('${r.id}')">Advance status →</button>`:""}
+    ${r.status!=="Closed"&&!r.linkedHazard?`<button class="btn primary" onclick="escalateToHazard('${r.id}')">Escalate to hazard</button>`:""}
+  `:`<button class="btn ghost" onclick="closeModal()">Close</button>`;
+  modal("Safety Report · "+r.id, body, foot, true);
+}
+function managerReportPanel(r){
+  return `<div class="panel" style="background:var(--panel2);margin:6px 0 14px">
+    <h4>Triage & risk assessment</h4>
+    <div class="f3">
+      <div class="field"><label>Likelihood</label><select id="t_L">
+        ${[5,4,3,2,1].map(n=>`<option value="${n}" ${r.rL==n?'selected':''}>${n} · ${LLABELS[5-n]}</option>`).join("")}</select></div>
+      <div class="field"><label>Severity</label><select id="t_S">
+        ${SCODES.map((c,i)=>`<option value="${i}" ${r.rS==i?'selected':''}>${c} · ${SLABELS[i]}</option>`).join("")}</select></div>
+      <div class="field"><label>Classification</label><select id="t_cls">
+        ${["","Flight Ops","Airworthiness","Ground Ops","Human Factors","Procedural","Environmental"].map(c=>`<option ${r.classification===c?'selected':''}>${c}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label>Investigation notes</label><textarea id="t_notes">${r.invNotes||""}</textarea></div>
+    <button class="btn sm primary" onclick="saveTriage('${r.id}')">Save assessment</button>
+  </div>`;
+}
+function saveTriage(id){
+  const r=DB.reports.find(x=>x.id===id);
+  r.rL=+val("t_L"); r.rS=+val("t_S"); r.classification=val("t_cls"); r.invNotes=val("t_notes");
+  if(r.status==="Open")r.status="Triage";
+  r.log.unshift({d:today(),who:currentUser().name,text:`Risk assessed ${r.rL}${SCODES[r.rS]} (${riskBand(r.rL,r.rS).label})`});
+  audit("Assessed report risk",r.id+" → "+r.rL+SCODES[r.rS]);
+  save();toast("Assessment saved");openReport(id);
+}
+function advanceReport(id){
+  const r=DB.reports.find(x=>x.id===id);
+  const flow=["Open","Triage","Under Investigation","Closed"];
+  const i=flow.indexOf(r.status); r.status=flow[Math.min(i+1,flow.length-1)];
+  r.log.unshift({d:today(),who:currentUser().name,text:"Status → "+r.status});
+  audit("Changed report status",r.id+" → "+r.status);
+  save();toast("Report "+r.status);openReport(id);buildNav();
+}
+function escalateToHazard(id){
+  const r=DB.reports.find(x=>x.id===id);
+  const h={id:"HZ-"+(200+DB.seq.hazard++), title:r.title, source:"Safety Report "+r.id,
+    category:r.classification||"Flight Ops", owner:DB.org.sm, opened:today(), status:"Mitigating",
+    description:r.desc, consequence:"", iL:r.rL||4, iS:r.rS!=null?r.rS:2, rL:r.rL||4, rS:r.rS!=null?r.rS:2,
+    mitigations:[], reviewDate:addDays(today(),90)};
+  DB.hazards.unshift(h); r.linkedHazard=h.id; r.status="Under Investigation";
+  r.log.unshift({d:today(),who:currentUser().name,text:"Escalated to hazard "+h.id});
+  audit("Escalated report to hazard",r.id+" → "+h.id);
+  save();toast("Created hazard "+h.id);closeModal();route("hazards");setTimeout(()=>openHazard(h.id),80);
+}
+function addDays(d,n){const t=new Date(d);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);}
+
+/* ============================================================
+   HAZARD / RISK REGISTER — Safety Risk Management
+   ============================================================ */
+let hazView="register";
+function viewHazards(){
+  return `
+  <div class="pill-tabs">
+    <button class="${hazView==='register'?'active':''}" onclick="hazView='register';route('hazards')">Register</button>
+    <button class="${hazView==='matrix'?'active':''}" onclick="hazView='matrix';route('hazards')">Risk Matrix</button>
+  </div>
+  ${hazView==="matrix"?hazardMatrixView():hazardRegister()}`;
+}
+function hazardRegister(){
+  const list=DB.hazards.slice().sort((a,b)=>riskScore(b.rL,b.rS)-riskScore(a.rL,a.rS));
+  return `
+  <div class="section-head"><h2>Hazard Register</h2><div class="sp"></div>
+    ${canEdit()?`<button class="btn primary" onclick="openHazardForm()">＋ Log Hazard</button>`:""}</div>
+  <div class="panel" style="padding:0;overflow:hidden">
+  <table><thead><tr>
+    <th>ID</th><th>Hazard</th><th>Category</th><th>Initial</th><th>Residual</th><th>Owner</th><th>Status</th><th>Review</th>
+  </tr></thead><tbody>
+  ${list.map(h=>`<tr class="clickrow" onclick="openHazard('${h.id}')">
+    <td><b>${h.id}</b></td><td>${h.title}<div class="small muted">${h.source}</div></td>
+    <td><span class="chip gray">${h.category}</span></td>
+    <td>${bandChip(h.iL,h.iS)}</td>
+    <td>${bandChip(h.rL,h.rS)}</td>
+    <td class="small">${h.owner}</td>
+    <td>${statusChip(h.status)}</td>
+    <td class="small ${h.reviewDate<today()?'':''}" style="${h.reviewDate<today()?'color:var(--red)':''}">${fmtDate(h.reviewDate)}</td>
+  </tr>`).join("")}
+  </tbody></table></div>`;
+}
+function hazardMatrixView(){
+  const counts={};DB.hazards.filter(h=>h.status!=="Closed").forEach(h=>{const k=h.rL+"-"+h.rS;(counts[k]=counts[k]||[]).push(h);});
+  let grid=`<table class="matrix" style="margin:0 auto"><tr><td></td><td colspan="5" class="maxis" style="padding-bottom:8px">Severity →</td></tr><tr><td></td>`;
+  SLABELS.forEach((s,i)=>grid+=`<th class="maxis">${SCODES[i]}<br><span style="font-weight:400;font-size:10px">${s}</span></th>`);
+  grid+=`</tr>`;
+  for(let L=5;L>=1;L--){
+    grid+=`<tr><th class="maxis" style="text-align:right;padding-right:8px">${L}<br><span style="font-weight:400;font-size:9px">${LLABELS[5-L]}</span></th>`;
+    for(let s=0;s<5;s++){const arr=counts[L+"-"+s]||[];const cls=matrixColor(L,s);
+      grid+=`<td><div class="mcell ${cls}" style="width:84px;height:60px;cursor:${arr.length?'pointer':'default'}" ${arr.length?`onclick="cellList(${L},${s})"`:""}>
+        ${arr.length?`<span class="cnt">${arr.length}</span>`:""}<span class="mn">${L}${SCODES[s]}</span>
+        <span style="font-size:9px;font-weight:600">${riskScore(L,s)}</span></div></td>`;}
+    grid+=`</tr>`;
+  }
+  grid+=`</table>`;
+  return `<div class="panel"><h3>Risk Assessment Matrix (residual risk)</h3>
+    <p class="muted small">ICAO Annex 19 5×5 — Likelihood (1–5) × Severity (A–E). Click a populated cell to list its hazards.</p>
+    ${grid}
+    <div class="legend" style="margin-top:18px;justify-content:center">
+      <span><span class="dot" style="background:#36c08a"></span>Acceptable</span>
+      <span><span class="dot" style="background:#e6c029"></span>Acceptable — monitor</span>
+      <span><span class="dot" style="background:#e8772e"></span>Tolerable — mitigate</span>
+      <span><span class="dot" style="background:#e0484b"></span>Intolerable — stop / escalate</span>
+    </div></div>`;
+}
+function cellList(L,s){
+  const arr=DB.hazards.filter(h=>h.rL===L&&h.rS===s&&h.status!=="Closed");
+  modal(`Hazards at ${L}${SCODES[s]} · ${riskBand(L,s).label}`,
+    arr.map(h=>`<div class="card" style="margin-bottom:8px;cursor:pointer" onclick="closeModal();openHazard('${h.id}')">
+      <b>${h.id}</b> · ${h.title}<div class="small muted">${h.category} · owner ${h.owner}</div></div>`).join(""),
+    `<button class="btn ghost" onclick="closeModal()">Close</button>`);
+}
+
+function openHazardForm(){
+  modal("Log New Hazard",`
+    <div class="field"><label>Hazard title *</label><input id="h_title" placeholder="e.g. Single-pilot fatigue on back-of-clock legs"></div>
+    <div class="f2">
+      <div class="field"><label>Category</label><select id="h_cat">
+        ${["Flight Ops","Airworthiness","Human Factors","Ground Ops","Environmental","Security","Organizational","Procedural"].map(c=>`<option>${c}</option>`).join("")}</select></div>
+      <div class="field"><label>Source</label><input id="h_src" placeholder="e.g. Audit, FDM, report"></div>
+    </div>
+    <div class="field"><label>Description of hazard *</label><textarea id="h_desc" placeholder="The condition or object with potential to cause harm"></textarea></div>
+    <div class="field"><label>Potential consequence</label><textarea id="h_cons" placeholder="Credible worst-case outcome"></textarea></div>
+    <h4 style="margin-top:6px">Initial risk (before controls)</h4>
+    <div class="f2">
+      <div class="field"><label>Likelihood</label><select id="h_iL">${[5,4,3,2,1].map(n=>`<option value="${n}">${n} · ${LLABELS[5-n]}</option>`).join("")}</select></div>
+      <div class="field"><label>Severity</label><select id="h_iS">${SCODES.map((c,i)=>`<option value="${i}">${c} · ${SLABELS[i]}</option>`).join("")}</select></div>
+    </div>
+    <div class="f2">
+      <div class="field"><label>Owner</label><input id="h_owner" value="${DB.org.sm}"></div>
+      <div class="field"><label>Next review</label><input type="date" id="h_rev" value="${addDays(today(),90)}"></div>
+    </div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitHazard()">Add to register</button>`,true);
+}
+function submitHazard(){
+  const title=val("h_title"),desc=val("h_desc");
+  if(!title||!desc){toast("Title and description required");return;}
+  const iL=+val("h_iL"),iS=+val("h_iS");
+  const h={id:"HZ-"+(200+DB.seq.hazard++),title,category:val("h_cat"),source:val("h_src")||"Manual entry",
+    description:desc,consequence:val("h_cons"),iL,iS,rL:iL,rS:iS,owner:val("h_owner")||DB.org.sm,
+    opened:today(),status:"Open",mitigations:[],reviewDate:val("h_rev")};
+  DB.hazards.unshift(h);audit("Logged hazard",h.id+" — "+h.title);save();closeModal();toast("Hazard "+h.id+" logged");route("hazards");
+}
+
+function openHazard(id){
+  const h=DB.hazards.find(x=>x.id===id);if(!h)return;
+  const isMgr=canEdit();
+  const reduction=riskScore(h.iL,h.iS)-riskScore(h.rL,h.rS);
+  const body=`
+  <div class="kv" style="margin-bottom:14px">
+    <div class="k">Hazard ID</div><div><b>${h.id}</b> ${statusChip(h.status)}</div>
+    <div class="k">Category</div><div>${h.category}</div>
+    <div class="k">Source</div><div>${h.source}</div>
+    <div class="k">Owner</div><div>${h.owner}</div>
+    <div class="k">Opened / Review</div><div>${fmtDate(h.opened)} · review ${fmtDate(h.reviewDate)}</div>
+  </div>
+  <div class="field"><label>Hazard description</label><div class="card">${h.description}</div></div>
+  ${h.consequence?`<div class="field"><label>Potential consequence</label><div class="card">${h.consequence}</div></div>`:""}
+  <div class="row" style="gap:24px;margin:14px 0">
+    <div><div class="small muted">INITIAL RISK</div>${bandChip(h.iL,h.iS)} <span class="small">${riskBand(h.iL,h.iS).label}</span></div>
+    <div style="font-size:22px;color:var(--muted)">→</div>
+    <div><div class="small muted">RESIDUAL RISK</div>${bandChip(h.rL,h.rS)} <span class="small">${riskBand(h.rL,h.rS).label}</span></div>
+    <div><div class="small muted">RISK REDUCTION</div><span class="chip ${reduction>0?'green':'gray'}">${reduction>0?'−'+reduction+' points':'none yet'}</span></div>
+  </div>
+  <div class="field"><label>Mitigations / barriers (${h.mitigations.length})</label>
+    ${h.mitigations.length?`<table><thead><tr><th>Control</th><th>Type</th><th>Status</th>${isMgr?'<th></th>':''}</tr></thead><tbody>
+      ${h.mitigations.map((m,i)=>`<tr><td>${m.text}</td><td><span class="chip gray">${m.type}</span></td>
+        <td>${statusChip(m.status)}</td>${isMgr?`<td><button class="btn sm ghost" onclick="toggleMit('${h.id}',${i})">${m.status==='Complete'?'reopen':'✓ done'}</button></td>`:''}</tr>`).join("")}
+    </tbody></table>`:"<div class='muted small'>No controls recorded.</div>"}
+  </div>
+  ${isMgr?`<div class="panel" style="background:var(--panel2)">
+    <h4>Add mitigation & re-assess residual risk</h4>
+    <div class="field"><label>Control / barrier</label><input id="m_text" placeholder="e.g. Limit single-pilot duty to 8h on back-of-clock"></div>
+    <div class="f3">
+      <div class="field"><label>Type</label><select id="m_type"><option>Eliminate</option><option>Engineering</option><option>Procedural</option><option>Training</option><option>PPE / Defence</option></select></div>
+      <div class="field"><label>New likelihood</label><select id="m_L">${[5,4,3,2,1].map(n=>`<option value="${n}" ${h.rL==n?'selected':''}>${n} · ${LLABELS[5-n]}</option>`).join("")}</select></div>
+      <div class="field"><label>New severity</label><select id="m_S">${SCODES.map((c,i)=>`<option value="${i}" ${h.rS==i?'selected':''}>${c} · ${SLABELS[i]}</option>`).join("")}</select></div>
+    </div>
+    <button class="btn sm primary" onclick="addMitigation('${h.id}')">Add control & update risk</button>
+  </div>`:""}`;
+  const foot=isMgr?`<button class="btn ghost" onclick="closeModal()">Close</button>
+    <select id="h_status" class="btn" onchange="setHazStatus('${h.id}',this.value)">
+      ${["Open","Mitigating","Monitoring","Closed"].map(s=>`<option ${h.status===s?'selected':''}>${s}</option>`).join("")}
+    </select>`:`<button class="btn ghost" onclick="closeModal()">Close</button>`;
+  modal("Hazard · "+h.id+" — "+h.title, body, foot, true);
+}
+function addMitigation(id){
+  const h=DB.hazards.find(x=>x.id===id);const text=val("m_text");
+  if(!text){toast("Enter a control");return;}
+  h.mitigations.push({text,type:val("m_type"),status:"In Progress"});
+  h.rL=+val("m_L");h.rS=+val("m_S");
+  if(h.status==="Open")h.status="Mitigating";
+  audit("Added hazard control",id+" → residual "+h.rL+SCODES[h.rS]);
+  save();toast("Control added; residual risk updated");openHazard(id);
+}
+function toggleMit(id,i){const h=DB.hazards.find(x=>x.id===id);
+  h.mitigations[i].status=h.mitigations[i].status==="Complete"?"In Progress":"Complete";save();openHazard(id);}
+function setHazStatus(id,s){const h=DB.hazards.find(x=>x.id===id);h.status=s;audit("Changed hazard status",id+" → "+s);save();toast("Hazard "+s);buildNav();}
+
+/* ============================================================
+   SAFETY ASSURANCE — Audits, Findings, CAPA
+   ============================================================ */
+let assureView="findings";
+function viewAudits(){
+  return `
+  <div class="pill-tabs">
+    <button class="${assureView==='findings'?'active':''}" onclick="assureView='findings';route('audits')">Findings & CAPA</button>
+    <button class="${assureView==='audits'?'active':''}" onclick="assureView='audits';route('audits')">Audit Schedule</button>
+  </div>
+  ${assureView==="audits"?auditSchedule():findingsView()}`;
+}
+function findingsView(){
+  const list=DB.findings.slice().sort((a,b)=>{
+    const ov=f=>f.status!=="Verified"&&f.status!=="Closed"&&f.due&&f.due<today()?0:1;
+    return ov(a)-ov(b) || new Date(a.due||"2999")-new Date(b.due||"2999");});
+  const open=list.filter(f=>f.status!=="Verified"&&f.status!=="Closed").length;
+  const overdue=list.filter(f=>f.status!=="Verified"&&f.status!=="Closed"&&f.due&&f.due<today()).length;
+  return `
+  <div class="grid cards" style="margin-bottom:16px">
+    ${kpi(open,"Open CAPA","corrective actions","amber")}
+    ${kpi(overdue,"Overdue", overdue?"escalate":"none","red")}
+    ${kpi(DB.findings.filter(f=>f.status==="Verified").length,"Verified Closed","effectiveness checked","green")}
+  </div>
+  <div class="section-head"><h2>Findings & Corrective Actions</h2><div class="sp"></div>
+    ${canEdit()?`<button class="btn primary" onclick="openFindingForm()">＋ Raise Finding</button>`:""}</div>
+  <div class="panel" style="padding:0;overflow:hidden">
+  <table><thead><tr><th>ID</th><th>Finding</th><th>Source</th><th>Level</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>
+  ${list.map(f=>{const od=f.status!=="Verified"&&f.status!=="Closed"&&f.due&&f.due<today();
+    return `<tr class="clickrow" onclick="openFinding('${f.id}')">
+    <td><b>${f.id}</b></td><td>${f.title}</td><td class="small">${f.source}</td>
+    <td><span class="chip ${f.level==='Major'?'red':f.level==='Minor'?'amber':'gray'}">${f.level}</span></td>
+    <td class="small">${f.owner}</td>
+    <td class="small" style="${od?'color:var(--red);font-weight:700':''}">${fmtDate(f.due)}${od?' ⚠':''}</td>
+    <td>${statusChip(od?'Overdue':f.status)}</td></tr>`;}).join("")}
+  </tbody></table></div>`;
+}
+function auditSchedule(){
+  const list=DB.audits.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return `<div class="section-head"><h2>Audit & Evaluation Schedule</h2><div class="sp"></div>
+    ${canEdit()?`<button class="btn primary" onclick="openAuditForm()">＋ Schedule Audit</button>`:""}</div>
+  <div class="panel" style="padding:0;overflow:hidden">
+  <table><thead><tr><th>Audit</th><th>Type</th><th>Scope</th><th>Lead</th><th>Date</th><th>Findings</th><th>Status</th></tr></thead><tbody>
+  ${list.map(a=>{const fc=DB.findings.filter(f=>f.auditId===a.id).length;
+    return `<tr><td><b>${a.id}</b> ${a.title}</td><td><span class="chip gray">${a.type}</span></td>
+    <td class="small">${a.scope}</td><td class="small">${a.lead}</td><td class="small">${fmtDate(a.date)}</td>
+    <td>${fc?`<span class="chip amber">${fc}</span>`:'<span class="muted">—</span>'}</td>
+    <td>${statusChip(a.status)}</td></tr>`;}).join("")}
+  </tbody></table></div>`;
+}
+function openAuditForm(){
+  modal("Schedule Audit",`
+    <div class="field"><label>Audit title *</label><input id="a_title" placeholder="e.g. Annual Flight Ops internal audit"></div>
+    <div class="f2">
+      <div class="field"><label>Type</label><select id="a_type"><option>Internal Audit</option><option>External Audit</option><option>Regulatory</option><option>Process Evaluation</option><option>Self-Audit</option></select></div>
+      <div class="field"><label>Date</label><input type="date" id="a_date" value="${today()}"></div>
+    </div>
+    <div class="field"><label>Scope</label><input id="a_scope" placeholder="e.g. SMS, Flight Ops, Training records"></div>
+    <div class="field"><label>Lead auditor</label><input id="a_lead" value="${DB.org.sm}"></div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitAudit()">Schedule</button>`);
+}
+function submitAudit(){
+  const title=val("a_title");if(!title){toast("Title required");return;}
+  const a={id:"AUD-"+(50+DB.seq.audit++),title,type:val("a_type"),date:val("a_date"),
+    scope:val("a_scope"),lead:val("a_lead")||DB.org.sm,status:new Date(val("a_date"))>new Date()?"Planned":"Complete"};
+  DB.audits.unshift(a);audit("Scheduled audit",a.id+" — "+a.title);save();closeModal();toast("Audit scheduled");route("audits");
+}
+function openFindingForm(){
+  modal("Raise Finding",`
+    <div class="field"><label>Finding title *</label><input id="f_title" placeholder="e.g. Emergency equipment inspection overdue on N300MJ"></div>
+    <div class="f2">
+      <div class="field"><label>Source</label><select id="f_src">
+        ${DB.audits.map(a=>`<option value="${a.id}">${a.id} · ${a.title}</option>`).join("")}
+        <option value="">Other / event-driven</option></select></div>
+      <div class="field"><label>Level</label><select id="f_level"><option>Observation</option><option>Minor</option><option>Major</option></select></div>
+    </div>
+    <div class="field"><label>Description / non-conformance *</label><textarea id="f_desc"></textarea></div>
+    <div class="field"><label>Root cause (if known)</label><textarea id="f_root"></textarea></div>
+    <div class="f3">
+      <div class="field"><label>Corrective action owner</label><input id="f_owner" value="${DB.org.sm}"></div>
+      <div class="field"><label>Due date</label><input type="date" id="f_due" value="${addDays(today(),30)}"></div>
+      <div class="field"><label>Reference</label><input id="f_ref" placeholder="e.g. Annex 19 §4.2"></div>
+    </div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitFinding()">Raise finding</button>`,true);
+}
+function submitFinding(){
+  const title=val("f_title"),desc=val("f_desc");if(!title||!desc){toast("Title & description required");return;}
+  const aId=val("f_src");
+  const f={id:"F-"+(300+DB.seq.finding++),title,source:aId?aId:"Event-driven",auditId:aId||null,
+    level:val("f_level"),desc,root:val("f_root"),capa:"",owner:val("f_owner")||DB.org.sm,
+    raised:today(),due:val("f_due"),ref:val("f_ref"),status:"Open",
+    log:[{d:today(),who:"Safety Manager",text:"Finding raised"}]};
+  DB.findings.unshift(f);audit("Raised finding",f.id+" — "+f.title);save();closeModal();toast("Finding "+f.id+" raised");route("audits");
+}
+function openFinding(id){
+  const f=DB.findings.find(x=>x.id===id);if(!f)return;
+  const isMgr=canEdit();
+  const od=f.status!=="Verified"&&f.status!=="Closed"&&f.due&&f.due<today();
+  const body=`
+  <div class="kv" style="margin-bottom:14px">
+    <div class="k">Finding ID</div><div><b>${f.id}</b> ${statusChip(od?'Overdue':f.status)} <span class="chip ${f.level==='Major'?'red':f.level==='Minor'?'amber':'gray'}">${f.level}</span></div>
+    <div class="k">Source</div><div>${f.source}</div>
+    <div class="k">Owner</div><div>${f.owner}</div>
+    <div class="k">Raised / Due</div><div>${fmtDate(f.raised)} · due ${fmtDate(f.due)}</div>
+    ${f.ref?`<div class="k">Reference</div><div>${f.ref}</div>`:""}
+  </div>
+  <div class="field"><label>Non-conformance</label><div class="card">${f.desc}</div></div>
+  ${f.root?`<div class="field"><label>Root cause</label><div class="card">${f.root}</div></div>`:""}
+  ${f.capa?`<div class="field"><label>Corrective / preventive action</label><div class="card">${f.capa}</div></div>`:""}
+  ${isMgr?`<div class="panel" style="background:var(--panel2)">
+    <h4>Corrective action plan (CAPA)</h4>
+    <div class="field"><label>Root cause</label><textarea id="cf_root">${f.root||""}</textarea></div>
+    <div class="field"><label>Corrective & preventive action</label><textarea id="cf_capa">${f.capa||""}</textarea></div>
+    <div class="row"><button class="btn sm primary" onclick="saveCAPA('${f.id}')">Save CAPA</button></div>
+  </div>`:""}
+  <div class="field"><label>Activity log</label><div class="timeline" style="margin-top:8px">
+    ${f.log.map(l=>`<div class="tl"><div>${l.text}</div><div class="when">${fmtDate(l.d)} · ${l.who}</div></div>`).join("")}
+  </div></div>`;
+  const foot=isMgr?`<button class="btn ghost" onclick="closeModal()">Close</button>
+    <select id="f_status" class="btn" onchange="setFindingStatus('${f.id}',this.value)">
+      ${["Open","In Progress","Monitoring","Verified","Closed"].map(s=>`<option ${f.status===s?'selected':''}>${s}</option>`).join("")}
+    </select>`:`<button class="btn ghost" onclick="closeModal()">Close</button>`;
+  modal("Finding · "+f.id, body, foot, true);
+}
+function saveCAPA(id){const f=DB.findings.find(x=>x.id===id);
+  f.root=val("cf_root");f.capa=val("cf_capa");
+  if(f.status==="Open"&&f.capa)f.status="In Progress";
+  f.log.unshift({d:today(),who:currentUser().name,text:"CAPA documented"});audit("Documented CAPA",id);save();toast("CAPA saved");openFinding(id);}
+function setFindingStatus(id,s){const f=DB.findings.find(x=>x.id===id);f.status=s;
+  f.log.unshift({d:today(),who:currentUser().name,text:"Status → "+s});audit("Changed finding status",id+" → "+s);save();toast("Finding "+s);buildNav();openFinding(id);}
+
+/* ============================================================
+   SAFETY PERFORMANCE — SPIs / SPTs
+   ============================================================ */
+function viewSPI(){
+  return `
+  <div class="section-head"><h2>Safety Performance Indicators & Targets</h2><div class="sp"></div>
+    ${canEdit()?`<button class="btn primary" onclick="openSPIForm()">＋ Add SPI</button>`:""}</div>
+  <p class="muted">Monitored against Safety Performance Targets (SPT) with alert levels per ICAO Annex 19 Safety Assurance. Lagging and leading indicators tracked over rolling periods.</p>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    ${DB.spis.map(spiCard).join("")}
+  </div>`;
+}
+function spiCard(s){
+  const st=spiStatus(s);
+  const max=Math.max(s.target*1.8, ...s.history.map(h=>h.v))*1.05;
+  const pts=s.history.map((h,i)=>{
+    const x=8+i*(252/(s.history.length-1||1));
+    const y=70-(h.v/max)*60;return `${x.toFixed(1)},${y.toFixed(1)}`;}).join(" ");
+  const ty=70-(s.target/max)*60;
+  return `<div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div><b>${s.name}</b><div class="small muted">${s.kind} indicator · ${s.period}</div></div>
+      ${st.alert?`<span class="chip red">⚠ ${st.label}</span>`:`<span class="chip green">${st.label}</span>`}
+    </div>
+    <div class="row" style="align-items:baseline;gap:8px;margin:8px 0">
+      <span style="font-size:26px;font-weight:740">${s.value}${s.unit}</span>
+      <span class="small muted">target ${s.dir==='lower'?'≤':'≥'} ${s.target}${s.unit}</span>
+    </div>
+    <svg viewBox="0 0 268 78" width="100%" height="78" style="overflow:visible">
+      <line x1="8" y1="${ty.toFixed(1)}" x2="260" y2="${ty.toFixed(1)}" stroke="#e6a817" stroke-width="1" stroke-dasharray="4 3"/>
+      <polyline points="${pts}" fill="none" stroke="${st.alert?'#e0484b':'#36c6a0'}" stroke-width="2"/>
+      ${s.history.map((h,i)=>{const x=8+i*(252/(s.history.length-1||1));const y=70-(h.v/max)*60;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" fill="${st.alert?'#e0484b':'#36c6a0'}"/>`;}).join("")}
+    </svg>
+    <div class="small muted">${s.history.map(h=>h.label).join(" · ")}</div>
+    ${canEdit()?`<div class="row" style="margin-top:10px"><button class="btn sm ghost" onclick="updateSPI('${s.id}')">Log new value</button></div>`:""}
+  </div>`;
+}
+function updateSPI(id){const s=DB.spis.find(x=>x.id===id);
+  modal("Log value · "+s.name,`
+    <div class="field"><label>Period label</label><input id="sp_lbl" placeholder="e.g. Jun"></div>
+    <div class="field"><label>Value (${s.unit})</label><input type="number" id="sp_val" value="${s.value}"></div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="saveSPIVal('${id}')">Save</button>`);
+}
+function saveSPIVal(id){const s=DB.spis.find(x=>x.id===id);
+  s.value=+val("sp_val");s.history.push({label:val("sp_lbl")||"new",v:+val("sp_val")});
+  if(s.history.length>8)s.history.shift();save();closeModal();toast("SPI updated");route("spi");}
+function openSPIForm(){
+  modal("Add Safety Performance Indicator",`
+    <div class="field"><label>Indicator name *</label><input id="s_name" placeholder="e.g. Unstable approaches per 1000 ops"></div>
+    <div class="f2">
+      <div class="field"><label>Kind</label><select id="s_kind"><option>Lagging</option><option>Leading</option></select></div>
+      <div class="field"><label>Period</label><select id="s_period"><option>Monthly</option><option>Quarterly</option><option>Rolling 12-mo</option></select></div>
+    </div>
+    <div class="f3">
+      <div class="field"><label>Current value</label><input type="number" id="s_val" value="0"></div>
+      <div class="field"><label>Target</label><input type="number" id="s_target" value="0"></div>
+      <div class="field"><label>Unit</label><input id="s_unit" placeholder="e.g. /1000"></div>
+    </div>
+    <div class="field"><label>Alert direction</label><select id="s_dir">
+      <option value="lower">Lower is better (alert if above target)</option>
+      <option value="higher">Higher is better (alert if below target)</option></select></div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitSPI()">Add SPI</button>`,true);
+}
+function submitSPI(){
+  const name=val("s_name");if(!name){toast("Name required");return;}
+  const v=+val("s_val");
+  DB.spis.push({id:uid("spi"),name,kind:val("s_kind"),period:val("s_period"),value:v,
+    target:+val("s_target"),unit:val("s_unit"),dir:val("s_dir"),
+    history:[{label:"now",v}]});
+  save();closeModal();toast("SPI added");route("spi");
+}
+
+/* ============================================================
+   POLICY & ACCOUNTABILITY — Safety Policy & Objectives component
+   ============================================================ */
+function viewPolicy(){
+  const isMgr=canEdit();
+  return `
+  <div class="panel" style="background:linear-gradient(120deg,#13314f,#1d5fb8);border:none">
+    <h3 style="color:#fff">Safety Policy Statement</h3>
+    <p style="color:#dce8fb;max-width:720px">${DB.policy.statement}</p>
+    <div class="small" style="color:#acc6ec">Signed: ${DB.org.ae}, Accountable Executive · Reviewed ${fmtDate(DB.policy.reviewed)}</div>
+  </div>
+  <div class="grid" style="grid-template-columns:1.3fr 1fr;align-items:start">
+    <div class="panel">
+      <div class="section-head"><h3>Safety Documentation</h3><div class="sp"></div>
+        ${canEdit()?`<button class="btn sm primary" onclick="openDocForm()">＋ Add document</button>`:""}</div>
+      <table><thead><tr><th>Document</th><th>Version</th><th>Review due</th><th>Status</th></tr></thead><tbody>
+      ${DB.policy.docs.map(d=>{const exp=d.review<today();
+        return `<tr><td>${d.name}<div class="small muted">${d.type}</div></td><td class="small">v${d.version}</td>
+        <td class="small" style="${exp?'color:var(--red)':''}">${fmtDate(d.review)}</td>
+        <td>${statusChip(exp?'Due Soon':d.status)}</td></tr>`;}).join("")}
+      </tbody></table>
+    </div>
+    <div>
+      <div class="panel"><h3>Safety Accountabilities</h3>
+        ${DB.policy.accountabilities.map(a=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
+          <b>${a.role}</b><div class="small muted">${a.person}</div>
+          <div class="small" style="margin-top:3px">${a.duty}</div></div>`).join("")}
+      </div>
+      <div class="panel"><h3>Safety Objectives ${new Date().getFullYear()}</h3>
+        ${DB.policy.objectives.map(o=>`<div style="margin:10px 0">
+          <div class="row" style="justify-content:space-between"><span class="small">${o.text}</span>
+            <span class="chip ${o.progress>=100?'green':o.progress>=50?'amber':'gray'}">${o.progress}%</span></div>
+          <div class="bar" style="margin-top:4px"><span style="width:${Math.min(100,o.progress)}%;background:${o.progress>=100?'var(--green)':'var(--brand)'}"></span></div>
+        </div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+function openDocForm(){
+  modal("Add Safety Document",`
+    <div class="field"><label>Document name *</label><input id="d_name" placeholder="e.g. Emergency Response Plan"></div>
+    <div class="f3">
+      <div class="field"><label>Type</label><select id="d_type"><option>Manual</option><option>Policy</option><option>Procedure</option><option>Plan</option><option>Form</option></select></div>
+      <div class="field"><label>Version</label><input id="d_ver" value="1.0"></div>
+      <div class="field"><label>Review due</label><input type="date" id="d_rev" value="${addDays(today(),365)}"></div>
+    </div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitDoc()">Add</button>`);
+}
+function submitDoc(){const name=val("d_name");if(!name){toast("Name required");return;}
+  DB.policy.docs.push({name,type:val("d_type"),version:val("d_ver"),review:val("d_rev"),status:"Active"});
+  audit("Added safety document",name);save();closeModal();toast("Document added");route("policy");}
+
+/* ============================================================
+   TRAINING & PROMOTION — Safety Promotion component
+   ============================================================ */
+function viewTraining(){
+  const recs=DB.training.records;
+  const current=recs.filter(r=>r.status==="Current").length;
+  const pct=Math.round(current/(recs.length||1)*100);
+  return `
+  <div class="grid cards" style="margin-bottom:16px">
+    ${kpi(pct+"%","Compliance","staff training current",pct>=90?"green":pct>=70?"amber":"red")}
+    ${kpi(recs.filter(r=>r.status!=="Current").length,"Action Needed","due or expired","amber")}
+    ${kpi(DB.training.courses.length,"SMS Courses","in curriculum","blue")}
+  </div>
+  <div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start">
+    <div class="panel">
+      <div class="section-head"><h3>Training Records</h3><div class="sp"></div>
+        <button class="btn sm primary" onclick="openTrainForm()">＋ Log training</button></div>
+      <table><thead><tr><th>Person</th><th>Course</th><th>Completed</th><th>Expires</th><th>Status</th></tr></thead><tbody>
+      ${recs.map(r=>`<tr><td>${r.person}<div class="small muted">${r.role}</div></td><td class="small">${r.course}</td>
+        <td class="small">${fmtDate(r.completed)}</td><td class="small">${r.expires?fmtDate(r.expires):'—'}</td>
+        <td>${statusChip(r.status)}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+    <div>
+      <div class="panel"><h3>SMS Training Curriculum</h3>
+        ${DB.training.courses.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <b class="small">${c.name}</b><div class="small muted">${c.audience} · every ${c.cycle}</div></div>`).join("")}
+      </div>
+      <div class="panel"><h3>Safety Promotion</h3>
+        ${DB.training.promotions.map(p=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
+          <div class="row" style="justify-content:space-between"><b class="small">${p.title}</b><span class="chip gray small">${p.kind}</span></div>
+          <div class="small muted">${fmtDate(p.date)} — ${p.note}</div></div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+function openTrainForm(){
+  modal("Log Training Completion",`
+    <div class="f2">
+      <div class="field"><label>Person *</label><input id="tr_person"></div>
+      <div class="field"><label>Role</label><input id="tr_role" placeholder="e.g. Captain"></div>
+    </div>
+    <div class="field"><label>Course</label><select id="tr_course">${DB.training.courses.map(c=>`<option>${c.name}</option>`).join("")}</select></div>
+    <div class="f2">
+      <div class="field"><label>Completed</label><input type="date" id="tr_done" value="${today()}"></div>
+      <div class="field"><label>Expires</label><input type="date" id="tr_exp" value="${addDays(today(),365)}"></div>
+    </div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="submitTrain()">Log</button>`);
+}
+function submitTrain(){const p=val("tr_person");if(!p){toast("Person required");return;}
+  const exp=val("tr_exp");
+  DB.training.records.unshift({person:p,role:val("tr_role"),course:val("tr_course"),
+    completed:val("tr_done"),expires:exp,status:exp&&exp<today()?"Expired":"Current"});
+  audit("Logged training",p+" — "+val("tr_course"));save();closeModal();toast("Training logged");route("training");}
+
+function viewMyTraining(){
+  const recs=DB.training.records.filter(r=>r.person===(currentUser()?currentUser().name:""));
+  return `
+  <div class="panel"><h3>Your SMS Training Record</h3>
+  ${recs.length?`<table><thead><tr><th>Course</th><th>Completed</th><th>Expires</th><th>Status</th></tr></thead><tbody>
+    ${recs.map(r=>`<tr><td>${r.course}</td><td class="small">${fmtDate(r.completed)}</td>
+      <td class="small">${r.expires?fmtDate(r.expires):'—'}</td><td>${statusChip(r.status)}</td></tr>`).join("")}
+  </tbody></table>`:"<div class='empty'>No records yet.</div>"}
+  </div>
+  <div class="panel"><h3>Required SMS Curriculum</h3>
+    ${DB.training.courses.map(c=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <b>${c.name}</b> <span class="chip gray small">${c.audience}</span>
+      <div class="small muted">${c.desc} · refresh every ${c.cycle}</div></div>`).join("")}
+  </div>`;
+}
+
+/* ============================================================
+   USER MANAGEMENT (admin)
+   ============================================================ */
+function viewUsers(){
+  return `
+  <div class="banner info">Role-based access control. Each user's role determines what they can see and change.
+    Production deployments authenticate against a secure backend; this demo uses local accounts.</div>
+  <div class="section-head"><h2>Users & Roles</h2><div class="sp"></div>
+    <button class="btn primary" onclick="openUserForm()">＋ Add user</button></div>
+  <div class="panel" style="padding:0;overflow:hidden">
+  <table><thead><tr><th>Name</th><th>Title</th><th>Department</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>
+  ${DB.users.map(u=>{const r=ROLES[u.role];const meId=currentUser().id;
+    return `<tr>
+      <td><div class="row" style="gap:8px"><span class="avatar" style="width:26px;height:26px;font-size:11px;background:${r.color}">${initials(u.name)}</span><b>${u.name}</b>${u.id===meId?' <span class="chip gray small">you</span>':''}</div></td>
+      <td class="small">${u.title||"—"}</td><td class="small">${u.dept||"—"}</td>
+      <td><span class="roleTag ${r.tag}">${r.label}</span></td>
+      <td class="small muted">${u.lastLogin?fmtDate(u.lastLogin):"never"}</td>
+      <td>${u.active?'<span class="chip green">Active</span>':'<span class="chip gray">Inactive</span>'}</td>
+      <td class="small"><button class="btn sm ghost" onclick="openUserForm('${u.id}')">Edit</button>
+        ${u.id!==meId?`<button class="btn sm ghost" onclick="toggleUser('${u.id}')">${u.active?'Deactivate':'Activate'}</button>`:''}</td>
+    </tr>`;}).join("")}
+  </tbody></table></div>
+  <div class="panel"><h4>Role permissions</h4>
+  <table><thead><tr><th>Role</th><th>View records</th><th>Edit / manage</th><th>Audit trail</th><th>User admin</th></tr></thead><tbody>
+  ${Object.entries(ROLES).map(([k,r])=>`<tr><td><span class="roleTag ${r.tag}">${r.label}</span></td>
+    <td>${r.perms.includes("view")?"✓":"—"}</td><td>${r.perms.includes("manage")?"✓":"—"}</td>
+    <td>${r.perms.includes("audit")?"✓":"—"}</td><td>${r.perms.includes("admin")?"✓":"—"}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function openUserForm(id){
+  const u=id?DB.users.find(x=>x.id===id):null;
+  modal(u?"Edit user":"Add user",`
+    <div class="f2">
+      <div class="field"><label>Full name *</label><input id="u_name" value="${u?u.name:""}"></div>
+      <div class="field"><label>Title</label><input id="u_title" value="${u?u.title||"":""}" placeholder="e.g. Captain"></div>
+    </div>
+    <div class="f2">
+      <div class="field"><label>Department</label><input id="u_dept" value="${u?u.dept||"":""}"></div>
+      <div class="field"><label>Role *</label><select id="u_role">
+        ${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${u&&u.role===k?'selected':''}>${r.label}</option>`).join("")}</select></div>
+    </div>
+    <div class="hint">Roles: Safety Manager (full), Accountable Executive (oversight + read), Department Manager (manage records), Front-line Crew (report + own training), Auditor (read-only).</div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="saveUser(${id?`'${id}'`:'null'})">${u?"Save":"Add user"}</button>`);
+}
+function saveUser(id){
+  const name=val("u_name");if(!name){toast("Name required");return;}
+  const data={name,title:val("u_title"),dept:val("u_dept"),role:val("u_role")};
+  if(id){const u=DB.users.find(x=>x.id===id);Object.assign(u,data);audit("Edited user",name+" ("+ROLES[u.role].label+")");}
+  else {DB.users.push({id:"u_"+(DB.seq.user++),...data,active:true,lastLogin:null});audit("Added user",name+" ("+ROLES[data.role].label+")");}
+  save();closeModal();renderHeader();buildNav();route("users");toast("User saved");
+}
+function toggleUser(id){const u=DB.users.find(x=>x.id===id);u.active=!u.active;
+  audit(u.active?"Activated user":"Deactivated user",u.name);save();buildNav();route("users");}
+
+/* ============================================================
+   AUDIT TRAIL (admin / auditor / exec)
+   ============================================================ */
+function fmtTS(ts){const d=new Date(ts);return d.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});}
+function viewAudit(){
+  const log=DB.audit.slice(0,300);
+  return `
+  <div class="banner info">Chronological record of every change, with user and timestamp — supporting Safety Assurance and regulatory traceability.
+    ${canEdit()?'<button class="btn sm" style="margin-left:10px" onclick="exportAudit()">Export CSV</button>':''}</div>
+  <div class="panel" style="padding:0;overflow:hidden">
+  <table><thead><tr><th>When</th><th>User</th><th>Role</th><th>Action</th><th>Detail</th></tr></thead><tbody>
+  ${log.length?log.map(a=>`<tr>
+    <td class="small muted" style="white-space:nowrap">${fmtTS(a.ts)}</td>
+    <td class="small">${a.user}</td>
+    <td>${ROLES[a.role]?`<span class="roleTag ${ROLES[a.role].tag}">${ROLES[a.role].label}</span>`:`<span class="chip gray">${a.role}</span>`}</td>
+    <td class="small"><b>${a.action}</b></td><td class="small muted">${a.detail||""}</td>
+  </tr>`).join(""):"<tr><td colspan=5 class='empty'>No activity logged yet.</td></tr>"}
+  </tbody></table></div>`;
+}
+function exportAudit(){
+  const rows=[["Timestamp","User","Role","Action","Detail"],
+    ...DB.audit.map(a=>[a.ts,a.user,a.role,a.action,a.detail])];
+  downloadCSV(rows,"sms-audit-trail.csv");audit("Exported audit trail");save();
+}
+function downloadCSV(rows,fname){
+  const csv=rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=fname;a.click();URL.revokeObjectURL(url);
+}
+
+/* ============================================================
+   DATA IMPORT — migrate from a previous tool (CSV / XLSX)
+   ============================================================ */
+const IMPORT_TARGETS={
+  reports:{label:"Safety Reports",fields:["title","type","date","location","reporter","desc"],required:["title"]},
+  hazards:{label:"Hazards / Risks",fields:["title","category","description","owner"],required:["title"]},
+  findings:{label:"Findings / CAPA",fields:["title","level","desc","owner","due"],required:["title"]},
+  training:{label:"Training Records",fields:["person","role","course","completed","expires"],required:["person","course"]}
+};
+let IMPORT={target:"reports",headers:[],rows:[],map:{}};
+function viewImport(){
+  const t=IMPORT_TARGETS[IMPORT.target];
+  return `
+  <div class="banner info">Migrating from a previous SMS or spreadsheet? Upload a <b>CSV</b> or <b>Excel (.xlsx)</b> export and map its
+    columns to SkySafe fields. CSV works fully offline; Excel parsing loads a helper the first time you're online.</div>
+  <div class="section-head"><h2>Import records</h2></div>
+  <div class="panel">
+    <div class="f2">
+      <div class="field"><label>Import into</label>
+        <select id="imp_target" onchange="IMPORT.target=this.value;IMPORT.headers=[];IMPORT.rows=[];route('import')">
+          ${Object.entries(IMPORT_TARGETS).map(([k,v])=>`<option value="${k}" ${IMPORT.target===k?'selected':''}>${v.label}</option>`).join("")}</select></div>
+      <div class="field"><label>File</label><input type="file" id="imp_file" accept=".csv,.xlsx,.xls" onchange="handleImportFile(this)"></div>
+    </div>
+    <div class="hint">Target fields: ${t.fields.join(", ")} (required: ${t.required.join(", ")}). Unmapped fields use sensible defaults.</div>
+  </div>
+  ${IMPORT.rows.length?importPreview():`<div class="dropzone" id="dz">Drop a CSV/XLSX file here, or use the file picker above.<br><span class="small">Up to a few thousand rows.</span></div>`}`;
+}
+function importPreview(){
+  const t=IMPORT_TARGETS[IMPORT.target];
+  const sample=IMPORT.rows.slice(0,5);
+  return `
+  <div class="panel">
+    <h3>Map columns <span class="muted small">· ${IMPORT.rows.length} rows detected</span></h3>
+    ${t.fields.map(f=>`<div class="maprow">
+      <label style="font-size:13px">${f}${t.required.includes(f)?' <span style="color:var(--red)">*</span>':''}</label>
+      <select onchange="IMPORT.map['${f}']=this.value">
+        <option value="">— ignore —</option>
+        ${IMPORT.headers.map(h=>`<option value="${h}" ${IMPORT.map[f]===h?'selected':''}>${h}</option>`).join("")}
+      </select></div>`).join("")}
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" onclick="runImport()">Import ${IMPORT.rows.length} rows</button>
+      <button class="btn ghost" onclick="IMPORT.rows=[];IMPORT.headers=[];route('import')">Cancel</button>
+    </div>
+  </div>
+  <div class="panel" style="padding:0;overflow:auto">
+    <table><thead><tr>${IMPORT.headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>
+    ${sample.map(r=>`<tr>${IMPORT.headers.map(h=>`<td class="small">${(r[h]??"").toString().slice(0,40)}</td>`).join("")}</tr>`).join("")}
+    </tbody></table>
+    <div class="small muted" style="padding:8px 12px">Showing first ${sample.length} of ${IMPORT.rows.length} rows.</div>
+  </div>`;
+}
+function autoMap(){
+  const t=IMPORT_TARGETS[IMPORT.target];IMPORT.map={};
+  t.fields.forEach(f=>{
+    const hit=IMPORT.headers.find(h=>h.toLowerCase().replace(/[^a-z]/g,"").includes(f.toLowerCase().slice(0,4)));
+    if(hit)IMPORT.map[f]=hit;});
+}
+function handleImportFile(input){
+  const file=input.files[0];if(!file)return;
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(ext==="csv"){const rd=new FileReader();rd.onload=e=>{parseImport(parseCSV(e.target.result));};rd.readAsText(file);}
+  else { loadSheetJS().then(XLSX=>{const rd=new FileReader();
+      rd.onload=e=>{const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json(ws,{defval:""});
+        parseImport({headers:Object.keys(json[0]||{}),rows:json});};
+      rd.readAsArrayBuffer(file);})
+    .catch(()=>toast("Excel parser unavailable offline — export as CSV instead")); }
+}
+function parseCSV(text){
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim().length);
+  const parseLine=l=>{const out=[];let cur="",q=false;
+    for(let i=0;i<l.length;i++){const c=l[i];
+      if(q){if(c==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+      else{if(c===','){out.push(cur);cur="";}else if(c==='"')q=true;else cur+=c;}}
+    out.push(cur);return out;};
+  const headers=parseLine(lines[0]).map(h=>h.trim());
+  const rows=lines.slice(1).map(l=>{const cells=parseLine(l);const o={};headers.forEach((h,i)=>o[h]=(cells[i]||"").trim());return o;});
+  return {headers,rows};
+}
+function parseImport(data){
+  IMPORT.headers=data.headers;IMPORT.rows=data.rows;autoMap();
+  if(!IMPORT.rows.length)toast("No rows found in file");
+  route("import");
+}
+function loadSheetJS(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  return new Promise((res,rej)=>{const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload=()=>res(window.XLSX);s.onerror=rej;document.head.appendChild(s);});
+}
+function runImport(){
+  const t=IMPORT_TARGETS[IMPORT.target];
+  for(const rq of t.required){if(!IMPORT.map[rq]){toast('Map the required field "'+rq+'" first');return;}}
+  let n=0;
+  IMPORT.rows.forEach(row=>{
+    const get=f=>IMPORT.map[f]?(row[IMPORT.map[f]]||"").toString().trim():"";
+    if(!get(t.required[0]))return;
+    if(IMPORT.target==="reports"){
+      DB.reports.unshift({id:"SR-"+(1000+DB.seq.report++),title:get("title"),type:get("type")||"Imported",
+        date:get("date")||today(),location:get("location"),phase:"",dept:"",desc:get("desc")||get("title"),
+        suggestion:"",reporter:get("reporter")||"Imported",anon:false,status:"Open",rL:null,rS:null,
+        linkedHazard:null,classification:"",invNotes:"",log:[{d:today(),who:currentUser().name,text:"Imported from file"}]});
+    } else if(IMPORT.target==="hazards"){
+      DB.hazards.unshift({id:"HZ-"+(200+DB.seq.hazard++),title:get("title"),category:get("category")||"Imported",
+        source:"Import",description:get("description")||get("title"),consequence:"",iL:3,iS:2,rL:3,rS:2,
+        owner:get("owner")||DB.org.sm,opened:today(),status:"Open",mitigations:[],reviewDate:addDays(today(),90)});
+    } else if(IMPORT.target==="findings"){
+      DB.findings.unshift({id:"F-"+(300+DB.seq.finding++),title:get("title"),source:"Import",auditId:null,
+        level:get("level")||"Observation",desc:get("desc")||get("title"),root:"",capa:"",owner:get("owner")||DB.org.sm,
+        raised:today(),due:get("due")||addDays(today(),30),ref:"",status:"Open",
+        log:[{d:today(),who:currentUser().name,text:"Imported from file"}]});
+    } else if(IMPORT.target==="training"){
+      const exp=get("expires");
+      DB.training.records.unshift({person:get("person"),role:get("role"),course:get("course"),
+        completed:get("completed")||today(),expires:exp,status:exp&&exp<today()?"Expired":"Current"});
+    }
+    n++;
+  });
+  audit("Imported "+n+" records",IMPORT_TARGETS[IMPORT.target].label);
+  save();IMPORT.rows=[];IMPORT.headers=[];
+  toast("Imported "+n+" "+IMPORT_TARGETS[IMPORT.target].label.toLowerCase());
+  route(IMPORT.target==="training"?"training":IMPORT.target==="findings"?"audits":IMPORT.target);
+}
+
+/* ============================================================
+   SEED DATA — realistic business-aviation demo dataset
+   ============================================================ */
+function seed(){
+  const D=today();
+  const ago=n=>addDays(D,-n);
+  return {
+    org:{name:"Meridian Jet Operations", ae:"K. Donnelly", sm:"R. Alvarez (SM)"},
+    seq:{report:7,hazard:9,audit:5,finding:7,user:7},
+    users:[
+      {id:"u_alvarez", name:"R. Alvarez",   role:"admin",   title:"Safety Manager",        dept:"Safety",      active:true,  lastLogin:null},
+      {id:"u_donnelly",name:"K. Donnelly",  role:"exec",    title:"President / Accountable Exec", dept:"Executive", active:true, lastLogin:null},
+      {id:"u_park",    name:"J. Park",       role:"dept",    title:"Director of Operations", dept:"Flight Ops",  active:true,  lastLogin:null},
+      {id:"u_whitfield",name:"D. Whitfield",role:"dept",    title:"Director of Maintenance",dept:"Maintenance", active:true,  lastLogin:null},
+      {id:"u_you",     name:"You (Crew)",    role:"crew",    title:"Captain",                dept:"Flight Ops",  active:true,  lastLogin:null},
+      {id:"u_auditor", name:"External Auditor",role:"auditor",title:"Independent Auditor",   dept:"External",    active:true,  lastLogin:null}
+    ],
+    audit:[
+      {id:"a_seed3",ts:new Date(Date.now()-3600e3*5).toISOString(),user:"R. Alvarez",role:"admin",action:"Changed finding status",detail:"F-303 → Verified"},
+      {id:"a_seed2",ts:new Date(Date.now()-3600e3*26).toISOString(),user:"D. Whitfield",role:"dept",action:"Documented CAPA",detail:"F-306"},
+      {id:"a_seed1",ts:new Date(Date.now()-3600e3*49).toISOString(),user:"R. Alvarez",role:"admin",action:"Logged hazard",detail:"HZ-208 — Ramp ground-handling collisions"}
+    ],
+    reports:[
+      {id:"SR-1006",title:"Unstable approach into KTEB rwy 06, GA flown",type:"Occurrence / Event",date:ago(3),
+        location:"KTEB / N300MJ",phase:"Approach",dept:"Flight Ops",
+        desc:"On RNAV approach the aircraft was above glidepath and fast through 1000ft AGL due to a late descent clearance and tailwind. Crew correctly executed a go-around. Second approach was stable and uneventful.",
+        suggestion:"Reinforce 1000ft stabilized-approach gate briefing for high-density Teterboro arrivals.",
+        reporter:"",anon:true,status:"Under Investigation",rL:3,rS:2,classification:"Flight Ops",
+        linkedHazard:"HZ-205",invNotes:"FDM data pulled; consistent with report. Reviewing approach briefing SOP.",
+        log:[{d:ago(3),who:"Anonymous",text:"Report submitted"},{d:ago(2),who:"Safety Manager",text:"Risk assessed 3C (Tolerable)"},{d:ago(1),who:"Safety Manager",text:"Escalated to hazard HZ-205"}]},
+      {id:"SR-1005",title:"Tug strike near miss on ramp during pushback",type:"Near-miss",date:ago(6),
+        location:"KHOU FBO",phase:"Ground",dept:"Ground Handling",
+        desc:"Wing walker lost sight of tug driver during pushback in low light; aircraft winglet came within ~2 ft of a parked vehicle before pushback halted.",
+        suggestion:"Hi-vis required and standardized hand signals after sunset.",
+        reporter:"M. Chen",anon:false,status:"Triage",rL:3,rS:2,classification:"Ground Ops",linkedHazard:null,invNotes:"",
+        log:[{d:ago(6),who:"M. Chen",text:"Report submitted"},{d:ago(5),who:"Safety Manager",text:"Risk assessed 3C (Tolerable)"}]},
+      {id:"SR-1004",title:"Fatigue on third back-of-clock leg",type:"Fatigue",date:ago(9),
+        location:"KLAS-KMIA",phase:"Cruise",dept:"Flight Ops",
+        desc:"Single crew duty extended to 13.5h across three legs with a 0200 local departure. Reporting captain noted micro-sleep risk on final cruise segment.",
+        suggestion:"Review FRMS thresholds for back-of-clock multi-leg duties.",
+        reporter:"",anon:true,status:"Under Investigation",rL:4,rS:2,classification:"Human Factors",linkedHazard:"HZ-201",invNotes:"Cross-referencing scheduling data for the quarter.",
+        log:[{d:ago(9),who:"Anonymous",text:"Report submitted"},{d:ago(8),who:"Safety Manager",text:"Risk assessed 4C; linked to HZ-201"}]},
+      {id:"SR-1003",title:"GPWS 'TERRAIN' caution on departure, KASE",type:"Occurrence / Event",date:ago(14),
+        location:"KASE",phase:"Climb",dept:"Flight Ops",
+        desc:"Momentary terrain caution during a valley departure; aircraft was on the published procedure and climbing normally. No avoidance maneuver required.",
+        suggestion:"Add KASE-specific terrain briefing to ops library.",
+        reporter:"J. Park",anon:false,status:"Closed",rL:2,rS:2,classification:"Flight Ops",linkedHazard:null,invNotes:"Confirmed nuisance alert on published SID. Briefing note added.",
+        log:[{d:ago(14),who:"J. Park",text:"Report submitted"},{d:ago(12),who:"Safety Manager",text:"Assessed 2C"},{d:ago(7),who:"Safety Manager",text:"Closed — briefing note issued"}]},
+      {id:"SR-1002",title:"Lav smoke detector intermittent fault",type:"Maintenance",date:ago(20),
+        location:"N512MJ",phase:"Maintenance",dept:"Maintenance",
+        desc:"Recurring intermittent fault on aft lav smoke detector; deferred under MEL twice in 30 days.",
+        suggestion:"Replace detector rather than continue MEL deferral.",
+        reporter:"D. Whitfield",anon:false,status:"Closed",rL:2,rS:1,classification:"Airworthiness",linkedHazard:null,invNotes:"Detector replaced; MEL cleared.",
+        log:[{d:ago(20),who:"D. Whitfield",text:"Report submitted"},{d:ago(11),who:"Safety Manager",text:"Closed — component replaced"}]},
+      {id:"SR-1001",title:"De-ice fluid holdover time confusion",type:"Procedure concern",date:ago(28),
+        location:"KBOS",phase:"Ground",dept:"Flight Ops",
+        desc:"Crew uncertainty over which holdover time table applied in light freezing drizzle; resolved via dispatch but caused a delay.",
+        suggestion:"Add quick-reference HOT card to cockpit.",
+        reporter:"S. Okafor",anon:false,status:"Closed",rL:3,rS:3,classification:"Procedural",linkedHazard:null,invNotes:"QRC card produced and distributed.",
+        log:[{d:ago(28),who:"S. Okafor",text:"Report submitted"},{d:ago(15),who:"Safety Manager",text:"Closed — QRC issued"}]}
+    ],
+    hazards:[
+      {id:"HZ-205",title:"Unstable approaches at high-density / terrain-constrained airports",category:"Flight Ops",
+        source:"Safety Report SR-1006",owner:"R. Alvarez (SM)",opened:ago(2),status:"Mitigating",
+        description:"Late descent clearances, tailwinds, and high traffic density at airports like KTEB increase the likelihood of unstable approaches and go-arounds.",
+        consequence:"Continued unstable approach leading to runway excursion or hard landing.",
+        iL:4,iS:2,rL:2,rS:2,reviewDate:addDays(D,60),
+        mitigations:[{text:"Mandatory 1000ft AGL stabilized-approach gate with auto go-around call",type:"Procedural",status:"Complete"},
+          {text:"FDM monitoring of approach stability with monthly trend review",type:"Engineering",status:"In Progress"},
+          {text:"High-density airport briefing package in ops library",type:"Training",status:"In Progress"}]},
+      {id:"HZ-201",title:"Crew fatigue on back-of-clock multi-leg duties",category:"Human Factors",
+        source:"FRMS / reports SR-1004",owner:"R. Alvarez (SM)",opened:ago(40),status:"Monitoring",
+        description:"Multi-leg duties beginning in the WOCL (window of circadian low) elevate fatigue risk for single-crew operations.",
+        consequence:"Degraded performance or micro-sleep leading to procedural error in a critical phase.",
+        iL:4,iS:2,rL:3,rS:2,reviewDate:addDays(D,30),
+        mitigations:[{text:"Fatigue Risk Management policy with max duty caps on WOCL legs",type:"Procedural",status:"Complete"},
+          {text:"Fatigue reporting integrated into ASR with no-jeopardy clause",type:"Procedural",status:"Complete"},
+          {text:"Schedule-building tool fatigue scoring",type:"Engineering",status:"In Progress"}]},
+      {id:"HZ-208",title:"Ramp ground-handling collisions during low-light pushback",category:"Ground Ops",
+        source:"Report SR-1005",owner:"T. Bauer",opened:ago(5),status:"Open",
+        description:"Reduced visibility and inconsistent marshalling signals during night ramp operations at transient FBOs.",
+        consequence:"Ground collision causing aircraft damage or personnel injury.",
+        iL:3,iS:2,rL:3,rS:2,reviewDate:addDays(D,75),
+        mitigations:[{text:"Standardized hi-vis and hand-signal SOP for night ops",type:"Procedural",status:"In Progress"}]},
+      {id:"HZ-203",title:"MEL deferral creep on recurring component faults",category:"Airworthiness",
+        source:"Maintenance trend review",owner:"D. Whitfield",opened:ago(34),status:"Monitoring",
+        description:"Repeated MEL deferrals on intermittent faults rather than root-cause repair can mask developing failures.",
+        consequence:"In-flight system failure of a deferred item.",
+        iL:3,iS:2,rL:2,rS:2,reviewDate:addDays(D,45),
+        mitigations:[{text:"Two-deferral limit triggering mandatory engineering review",type:"Procedural",status:"Complete"},
+          {text:"Monthly reliability trend report to DOM",type:"Engineering",status:"Complete"}]},
+      {id:"HZ-210",title:"Winter contamination & holdover-time decision-making",category:"Flight Ops",
+        source:"Report SR-1001",owner:"R. Alvarez (SM)",opened:ago(26),status:"Mitigating",
+        description:"Crew uncertainty applying holdover-time tables in marginal winter precipitation.",
+        consequence:"Takeoff with contaminated critical surfaces.",
+        iL:3,iS:1,rL:2,rS:1,reviewDate:addDays(D,120),
+        mitigations:[{text:"Cockpit quick-reference HOT card",type:"Procedural",status:"Complete"},
+          {text:"Annual winter-ops recurrent training module",type:"Training",status:"In Progress"}]},
+      {id:"HZ-207",title:"Single-pilot resource management on complex arrivals",category:"Human Factors",
+        source:"Internal audit AUD-052",owner:"R. Alvarez (SM)",opened:ago(55),status:"Monitoring",
+        description:"High workload during complex RNAV arrivals in single-pilot operations.",
+        consequence:"Task saturation leading to flight-path deviation.",
+        iL:3,iS:2,rL:2,rS:3,reviewDate:addDays(D,20),
+        mitigations:[{text:"Automation-management SOP and recurrent scenario training",type:"Training",status:"Complete"}]}
+    ],
+    audits:[
+      {id:"AUD-054",title:"Annual SMS effectiveness audit",type:"Internal Audit",date:ago(18),scope:"All four SMS components",lead:"R. Alvarez (SM)",status:"Complete"},
+      {id:"AUD-053",title:"External SMS conformance audit",type:"External Audit",date:addDays(D,35),scope:"Full SMS & operations",lead:"External Auditor",status:"Planned"},
+      {id:"AUD-052",title:"Flight Ops process evaluation",type:"Process Evaluation",date:ago(58),scope:"Flight Ops procedures, training records",lead:"J. Park",status:"Complete"},
+      {id:"AUD-051",title:"Maintenance & airworthiness audit",type:"Internal Audit",date:ago(72),scope:"Part 145 processes, MEL management",lead:"D. Whitfield",status:"Complete"}
+    ],
+    findings:[
+      {id:"F-306",title:"Emergency equipment inspection overdue on N300MJ",source:"AUD-054",auditId:"AUD-054",level:"Major",
+        desc:"Life vest inspection interval exceeded by 11 days on N300MJ at time of audit.",
+        root:"Tracking spreadsheet not synced with maintenance scheduling software.",
+        capa:"Migrate emergency-equipment tracking into CAMP; add 30-day advance alert.",owner:"D. Whitfield",
+        raised:ago(18),due:addDays(D,-2),ref:"Annex 19 §3 (SRM)",status:"In Progress",
+        log:[{d:ago(18),who:"Safety Manager",text:"Finding raised"},{d:ago(10),who:"Safety Manager",text:"CAPA documented"}]},
+      {id:"F-305",title:"Stabilized-approach policy not documented in SOP",source:"AUD-054",auditId:"AUD-054",level:"Minor",
+        desc:"Stabilized-approach gates were briefed but not formally captured in the Flight Operations Manual.",
+        root:"FOM not updated after 2024 procedure change.",
+        capa:"Add stabilized-approach criteria and go-around policy to FOM §4.7; bulletin to crews.",owner:"R. Alvarez (SM)",
+        raised:ago(18),due:addDays(D,12),ref:"Annex 19 §3 (SRM)",status:"In Progress",
+        log:[{d:ago(18),who:"Safety Manager",text:"Finding raised"},{d:ago(9),who:"Safety Manager",text:"CAPA documented"}]},
+      {id:"F-304",title:"Safety reporting follow-up loop not closed to reporters",source:"AUD-054",auditId:"AUD-054",level:"Observation",
+        desc:"Reporters of non-anonymous reports were not consistently informed of outcomes.",
+        root:"No standard feedback step in the reporting workflow.",
+        capa:"Add a feedback-to-reporter step in the ASR procedure and SMS app workflow.",owner:"R. Alvarez (SM)",
+        raised:ago(18),due:addDays(D,25),ref:"Annex 19 §5",status:"Open",
+        log:[{d:ago(18),who:"Safety Manager",text:"Finding raised"}]},
+      {id:"F-303",title:"MEL deferral exceeding internal review threshold",source:"AUD-051",auditId:"AUD-051",level:"Minor",
+        desc:"Two components carried beyond the two-deferral internal limit without engineering sign-off.",
+        root:"Internal limit not enforced in deferral workflow.",
+        capa:"Add hard stop in maintenance system requiring DOM approval at second deferral.",owner:"D. Whitfield",
+        raised:ago(72),due:ago(20),ref:"Part 91 / MEL",status:"Verified",
+        log:[{d:ago(72),who:"Safety Manager",text:"Finding raised"},{d:ago(40),who:"D. Whitfield",text:"CAPA implemented"},{d:ago(20),who:"Safety Manager",text:"Verified effective — closed"}]},
+      {id:"F-302",title:"Recurrent CRM training records incomplete for 2 crew",source:"AUD-052",auditId:"AUD-052",level:"Minor",
+        desc:"Two crew members missing documented CRM recurrent within the 12-month cycle.",
+        root:"Training records transitioned between systems; gaps not flagged.",
+        capa:"Reconcile records; schedule both crew for next CRM session; add expiry dashboard.",owner:"R. Alvarez (SM)",
+        raised:ago(58),due:ago(28),ref:"Annex 19 §4 (Promotion)",status:"Verified",
+        log:[{d:ago(58),who:"Safety Manager",text:"Finding raised"},{d:ago(30),who:"Safety Manager",text:"Records reconciled; training completed"},{d:ago(28),who:"Safety Manager",text:"Verified — closed"}]}
+    ],
+    spis:[
+      {id:"spi1",name:"Unstable approaches per 1000 ops",kind:"Lagging",period:"Rolling 12-mo",value:2.4,target:2.0,unit:"/1k",dir:"lower",
+        history:[{label:"Jan",v:3.1},{label:"Feb",v:2.9},{label:"Mar",v:2.7},{label:"Apr",v:2.6},{label:"May",v:2.5},{label:"Jun",v:2.4}]},
+      {id:"spi2",name:"Safety reports per 100 flights",kind:"Leading",period:"Monthly",value:4.8,target:3.0,unit:"",dir:"higher",
+        history:[{label:"Jan",v:2.6},{label:"Feb",v:3.2},{label:"Mar",v:3.9},{label:"Apr",v:4.1},{label:"May",v:4.5},{label:"Jun",v:4.8}]},
+      {id:"spi3",name:"Overdue corrective actions",kind:"Lagging",period:"Monthly",value:1,target:0,unit:"",dir:"lower",
+        history:[{label:"Jan",v:3},{label:"Feb",v:2},{label:"Mar",v:2},{label:"Apr",v:1},{label:"May",v:2},{label:"Jun",v:1}]},
+      {id:"spi4",name:"SMS training compliance",kind:"Leading",period:"Quarterly",value:88,target:95,unit:"%",dir:"higher",
+        history:[{label:"Q3'25",v:79},{label:"Q4'25",v:84},{label:"Q1'26",v:86},{label:"Q2'26",v:88}]}
+    ],
+    policy:{
+      statement:"Meridian Jet Operations is committed to the highest standards of safety. We will manage safety risk to as low as reasonably practicable, provide the resources to do so, and foster a Just Culture in which every employee is encouraged and empowered to report hazards and errors without fear of reprisal. Safety is the responsibility of every member of our organization and takes priority over schedule and commercial pressures.",
+      reviewed:ago(45),
+      accountabilities:[
+        {role:"Accountable Executive",person:"K. Donnelly, President",duty:"Ultimate accountability for the SMS; provides resources and sets the safety policy."},
+        {role:"Safety Manager",person:"R. Alvarez",duty:"Manages day-to-day SMS operations, risk register, reporting system, and safety assurance."},
+        {role:"Director of Operations",person:"J. Park",duty:"Accountable for operational safety performance of flight operations."},
+        {role:"Director of Maintenance",person:"D. Whitfield",duty:"Accountable for airworthiness and maintenance safety performance."},
+        {role:"Safety Review Board",person:"Quarterly · all directors",duty:"Strategic oversight of SMS performance, risk acceptance, and objectives."}
+      ],
+      objectives:[
+        {text:"Reduce unstable approach rate below 2.0 per 1000 ops",progress:70},
+        {text:"Pass external SMS conformance audit with zero major findings",progress:60},
+        {text:"100% SMS recurrent training compliance",progress:88},
+        {text:"Zero overdue corrective actions sustained for 2 quarters",progress:45}
+      ],
+      docs:[
+        {name:"Safety Management System Manual",type:"Manual",version:"3.2",review:addDays(D,140),status:"Active"},
+        {name:"Flight Operations Manual",type:"Manual",version:"5.1",review:addDays(D,40),status:"Active"},
+        {name:"Emergency Response Plan",type:"Plan",version:"2.4",review:addDays(D,-8),status:"Active"},
+        {name:"Just Culture & Reporting Policy",type:"Policy",version:"1.3",review:addDays(D,210),status:"Active"},
+        {name:"Fatigue Risk Management Policy",type:"Policy",version:"1.1",review:addDays(D,300),status:"Active"}
+      ]
+    },
+    training:{
+      courses:[
+        {name:"SMS Fundamentals (Annex 19)",audience:"All staff",cycle:"24 mo",desc:"Four-component SMS, roles, and reporting"},
+        {name:"Just Culture & Safety Reporting",audience:"All staff",cycle:"24 mo",desc:"How and why to report; non-punitive policy"},
+        {name:"CRM / SRM Recurrent",audience:"Flight crew",cycle:"12 mo",desc:"Threat & error management, single-pilot resource mgmt"},
+        {name:"Hazard Identification & Risk Assessment",audience:"Managers",cycle:"24 mo",desc:"Running SRM and the risk matrix"},
+        {name:"Emergency Response Plan Drill",audience:"All staff",cycle:"12 mo",desc:"ERP activation and roles"}
+      ],
+      records:[
+        {person:"You (Crew)",role:"Captain",course:"SMS Fundamentals (Annex 19)",completed:ago(120),expires:addDays(D,610),status:"Current"},
+        {person:"You (Crew)",role:"Captain",course:"Just Culture & Safety Reporting",completed:ago(120),expires:addDays(D,610),status:"Current"},
+        {person:"You (Crew)",role:"Captain",course:"CRM / SRM Recurrent",completed:ago(400),expires:addDays(D,-35),status:"Expired"},
+        {person:"M. Chen",role:"Ground Lead",course:"SMS Fundamentals (Annex 19)",completed:ago(90),expires:addDays(D,640),status:"Current"},
+        {person:"J. Park",role:"Director of Ops",course:"Hazard Identification & Risk Assessment",completed:ago(200),expires:addDays(D,530),status:"Current"},
+        {person:"S. Okafor",role:"First Officer",course:"CRM / SRM Recurrent",completed:ago(340),expires:addDays(D,25),status:"Due Soon"},
+        {person:"D. Whitfield",role:"Director of Maint",course:"SMS Fundamentals (Annex 19)",completed:ago(150),expires:addDays(D,580),status:"Current"}
+      ],
+      promotions:[
+        {title:"Q2 Safety Newsletter — Unstable Approaches",kind:"Newsletter",date:ago(12),note:"Trends, FDM insights, stabilized-approach refresher"},
+        {title:"Safety Stand-down: Winter Ops",kind:"Briefing",date:ago(35),note:"All-crew holdover-time and contamination review"},
+        {title:"Lessons Learned: KTEB go-around",kind:"Bulletin",date:ago(2),note:"De-identified case study from SR-1006"},
+        {title:"Safety Review Board summary",kind:"Comms",date:ago(20),note:"Quarterly SRB outcomes shared with all staff"}
+      ]
+    }
+  };
+}
+</script>
+</body>
+</html>

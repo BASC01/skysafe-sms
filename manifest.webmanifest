@@ -1,0 +1,17 @@
+{
+  "name": "SkySafe SMS — Business Aviation Safety Management System",
+  "short_name": "SkySafe SMS",
+  "description": "ICAO Annex 19 Safety Management System for business aviation operators. Works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1722",
+  "theme_color": "#0f1722",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
