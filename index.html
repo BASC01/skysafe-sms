@@ -319,7 +319,7 @@ function daysAgo(d){const n=daysBetween(d,today());return n<=0?"today":n+"d ago"
    All persistence funnels through load()/save(). To move to a backend,
    swap these two functions for API calls and add sync on reconnect —
    no other module touches storage directly. */
-const KEY="skysafe_sms_v4";
+const KEY="skysafe_sms_v6";
 const SKEY="skysafe_session_v1";
 let DB=null;
 function load(){ try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r);}catch(e){} if(!DB){DB=seed();save();} }
@@ -429,6 +429,8 @@ function val(id){const e=document.getElementById(id);return e?e.value.trim():"";
 /* ---------- chips ---------- */
 function statusChip(s){
   const m={"Open":"blue","Triage":"amber","Under Investigation":"orange","Investigating":"orange",
+    "Submitted":"blue","Acknowledged":"amber","Risk Assessed":"orange","Investigation":"orange",
+    "Corrective Action":"blue","Feedback to Reporter":"amber",
     "Mitigating":"orange","Monitoring":"blue","Closed":"green","Accepted":"green","Overdue":"red",
     "In Progress":"amber","Not Started":"gray","Complete":"green","Verified":"green",
     "Draft":"gray","Active":"green","Planned":"blue","Current":"green","Due Soon":"amber","Expired":"red"};
@@ -554,28 +556,22 @@ function route(id){
    ============================================================ */
 // Reports/submissions that need the safety manager's attention, prioritized.
 function attentionReports(){
-  const rank={"Open":0,"Triage":1,"Under Investigation":2};
-  const ACTION={
-    "Open":{label:"Awaiting triage",cls:"red"},
-    "Triage":{label:"Assess & disposition",cls:"amber"},
-    "Under Investigation":{label:"Investigation open",cls:"orange"}
-  };
   return DB.reports
-    .filter(r=>r.status in rank)
+    .filter(r=>r.status!=="Closed")
     .map(r=>{
+      const a=RPT_ACTION[r.status]||{label:"Review",cls:"gray",sla:14};
       const age=daysBetween(r.date,today());
-      // triage SLA: an Open report older than 3 days is late
-      const late=(r.status==="Open"&&age>3)||(r.status==="Triage"&&age>7);
-      return {...r, age, late, action:ACTION[r.status]};
+      const late=age>a.sla;
+      return {...r, age, late, action:a, rank:RPT_FLOW.indexOf(r.status)};
     })
-    .sort((a,b)=> (b.late-a.late) || (rank[a.status]-rank[b.status]) || (b.age-a.age));
+    .sort((a,b)=> (b.late-a.late) || (a.rank-b.rank) || (b.age-a.age));
 }
 
 function viewDashboard(){
   if(ROLE==="crew")return crewDashboard();
   const att=attentionReports();
-  const awaiting=att.filter(r=>r.status==="Open").length;
-  const investigating=att.filter(r=>r.status==="Under Investigation").length;
+  const fresh=att.filter(r=>r.status==="Submitted").length;
+  const investigating=att.filter(r=>r.status==="Investigation").length;
   const late=att.filter(r=>r.late).length;
 
   return `
@@ -583,7 +579,7 @@ function viewDashboard(){
     <div class="section-head">
       <h3>Reports needing your attention</h3>
       <span class="row" style="gap:8px;margin-left:10px">
-        ${awaiting?`<span class="chip red">${awaiting} awaiting triage</span>`:""}
+        ${fresh?`<span class="chip red">${fresh} new — acknowledge</span>`:""}
         ${investigating?`<span class="chip orange">${investigating} under investigation</span>`:""}
         ${late?`<span class="chip amber">${late} past target time</span>`:""}
         ${!att.length?`<span class="chip green">all clear</span>`:""}
@@ -594,9 +590,9 @@ function viewDashboard(){
     ${att.length?`
     <table><thead><tr><th></th><th>ID</th><th>Report</th><th>Reporter</th><th>Risk</th><th>Age</th><th>Action needed</th></tr></thead><tbody>
     ${att.map(r=>`<tr class="clickrow" onclick="openReport('${r.id}')">
-      <td><span class="dot" style="background:${r.late?'var(--red)':'var(--'+(r.status==='Open'?'amber':'brand')+')'}"></span></td>
+      <td><span class="dot" style="background:${r.late?'var(--red)':'var(--brand)'}"></span></td>
       <td><b>${r.id}</b></td>
-      <td>${r.title}<div class="small muted">${r.type}${r.linkedHazard?` · ⚠ ${r.linkedHazard}`:""}</div></td>
+      <td>${r.title}<div class="small muted">${reportCat(r)}${r.linkedHazard?` · ⚠ ${r.linkedHazard}`:""}</div></td>
       <td class="small">${r.anon?'<span class="muted">Anonymous</span>':r.reporter}</td>
       <td>${r.rL?bandChip(r.rL,r.rS):'<span class="muted small">unrated</span>'}</td>
       <td class="small ${r.late?'':'muted'}" style="${r.late?'color:var(--red);font-weight:700':''}">${r.age}d</td>
@@ -723,145 +719,318 @@ function spiStatus(s){
 /* ============================================================
    SAFETY REPORTING (ASR) — Safety Risk Management component
    ============================================================ */
-let reportFilter="all";
+/* ---- taxonomy & lifecycle ---- */
+const RPT_TYPES=["Hazard / observation","Occurrence / event","Near-miss","Injury / illness",
+  "Aircraft or ground damage","Wildlife strike","Fatigue","Security","Cabin safety",
+  "Maintenance / airworthiness","ATC / airspace","Weather","Other"];
+const RPT_CLASS=["Flight Ops","Airworthiness","Ground Ops","Human Factors","Cabin","Organizational","Security","Environmental"];
+// CICTT / ICAO-CAST common occurrence categories — assigned by the safety team at triage (benchmarkable)
+const CICTT=[
+  ["ARC","Abnormal runway contact"],["ADRM","Aerodrome"],["AMAN","Abrupt manoeuvre"],
+  ["ATM","ATM / CNS"],["BIRD","Birdstrike / wildlife"],["CABIN","Cabin safety event"],
+  ["CFIT","Controlled flight into/toward terrain"],["CTOL","Collision w/ obstacle on takeoff/landing"],
+  ["EVAC","Evacuation"],["F-NI","Fire/smoke (non-impact)"],["FUEL","Fuel related"],
+  ["GCOL","Ground collision"],["RAMP","Ground handling / ramp"],["ICE","Icing"],
+  ["LOC-G","Loss of control – ground"],["LOC-I","Loss of control – inflight"],
+  ["LALT","Low-altitude operations"],["MAC","Airprox / TCAS / loss of separation"],
+  ["MED","Medical"],["RE","Runway excursion"],["RI","Runway incursion"],
+  ["SCF-NP","System/component failure – non-powerplant"],["SCF-PP","Powerplant failure"],
+  ["SEC","Security"],["TURB","Turbulence encounter"],["UIMC","Unintended flight in IMC"],
+  ["USOS","Undershoot / overshoot"],["WSTRW","Windshear / thunderstorm"],["OTHR","Other"]
+];
+function cicttLabel(code){const c=CICTT.find(x=>x[0]===code);return c?c[0]+" — "+c[1]:code;}
+function reportCat(r){
+  const parts=[];
+  if(r.cictt)parts.push(`<b>${r.cictt}</b>`);
+  if(r.classification)parts.push(r.classification);
+  return parts.length?parts.join(" · "):'<span style="opacity:.6">Uncategorized</span>';
+}
+/* Offline keyword classifier — suggests a CICTT category + functional area from report text.
+   No external service; runs in-browser. A backend LLM can replace this for higher accuracy. */
+const CAT_RULES=[
+  [["bird","wildlife","deer","goose","fox"],"BIRD","Environmental"],
+  [["tcas","airprox","loss of separation","near midair","resolution advisory","traffic alert"],"MAC","Flight Ops"],
+  [["runway excursion","overran","ran off","veered off the runway"],"RE","Flight Ops"],
+  [["runway incursion","wrong runway","crossed without clearance","incursion"],"RI","Flight Ops"],
+  [["tug","pushback","wing walker","marshal","ramp","ground vehicle","hangar","towed","gpu","belt loader"],"RAMP","Ground Ops"],
+  [["ground collision","taxied into","wingtip struck","struck a"],"GCOL","Ground Ops"],
+  [["de-ice","deice","de ice","icing","ice on","holdover","contamination"],"ICE","Flight Ops"],
+  [["smoke","fire","burning smell","fumes","odor"],"F-NI","Airworthiness"],
+  [["terrain","gpws","egpws","pull up","cfit"],"CFIT","Flight Ops"],
+  [["turbulence","severe chop","clear air turb"],"TURB","Flight Ops"],
+  [["windshear","thunderstorm","microburst","convective"],"WSTRW","Flight Ops"],
+  [["medical","passenger ill","unresponsive","cardiac","seizure"],"MED","Cabin"],
+  [["security","unruly","unlawful","threat","breach","interference"],"SEC","Security"],
+  [["fuel imbalance","low fuel","fuel leak","fuel quantity","defuel"],"FUEL","Airworthiness"],
+  [["engine","powerplant","compressor stall","flameout","n1","n2"],"SCF-PP","Airworthiness"],
+  [["hydraulic","electrical","landing gear","avionics","warning light","caution message","mel","component fault","detector","actuator"],"SCF-NP","Airworthiness"],
+  [["cabin","galley","seat belt","lavatory","overhead bin","cabin door"],"CABIN","Cabin"],
+  [["atc","clearance","frequency","controller","airspace","cleared to"],"ATM","Flight Ops"],
+  [["fatigue","tired","back-of-clock","back of clock","micro-sleep","duty time","rest period"],"OTHR","Human Factors"],
+  [["unstable approach","go-around","go around","glidepath","high and fast","stabilized approach","unstabilized"],"ARC","Flight Ops"]
+];
+function suggestCategory(text){
+  const t=(text||"").toLowerCase();
+  for(const [kws,code,cls] of CAT_RULES){ if(kws.some(k=>t.includes(k))) return {cictt:code,cls}; }
+  return {cictt:"",cls:""};
+}
+function aiSuggest(id){
+  const r=DB.reports.find(x=>x.id===id);
+  const s=suggestCategory((r.title||"")+" "+(r.desc||"")+" "+(r.factors||[]).join(" "));
+  if(s.cictt){const e=document.getElementById("t_cictt");if(e)e.value=s.cictt;}
+  if(s.cls){const e=document.getElementById("t_cls");if(e)e.value=s.cls;}
+  toast(s.cictt?("Suggested "+s.cictt+" — review & save"):"No confident match — choose manually");
+}
+const RPT_FACTORS=["Weather","Fatigue","Time pressure","Communication","Procedure unclear",
+  "Training / competency","Equipment / tooling","Staffing","Distraction","High workload","Other"];
+const RPT_PHASES=["Ground / pre-flight","Taxi","Takeoff","Climb","Cruise","Descent","Approach","Landing","Maintenance","N/A"];
+const RPT_DEPTS=["Flight Ops","Maintenance","Cabin","Dispatch / Scheduling","Ground Handling","Other"];
+const RPT_FLOW=["Submitted","Acknowledged","Risk Assessed","Investigation","Corrective Action","Feedback to Reporter","Closed"];
+// per-stage action label, colour, and SLA (days) used for the home attention queue
+const RPT_ACTION={
+  "Submitted":{label:"Acknowledge receipt",cls:"red",sla:2},
+  "Acknowledged":{label:"Assess risk",cls:"amber",sla:5},
+  "Risk Assessed":{label:"Decide / investigate",cls:"amber",sla:7},
+  "Investigation":{label:"Investigation open",cls:"orange",sla:30},
+  "Corrective Action":{label:"Implement actions",cls:"blue",sla:30},
+  "Feedback to Reporter":{label:"Send feedback & close",cls:"amber",sla:7}
+};
+
+/* ---- register view ---- */
+const RFILTER={
+  all:()=>true,
+  open:r=>r.status!=="Closed",
+  new:r=>["Submitted","Acknowledged"].includes(r.status),
+  investigation:r=>r.status==="Investigation",
+  action:r=>["Risk Assessed","Corrective Action","Feedback to Reporter"].includes(r.status),
+  closed:r=>r.status==="Closed"
+};
+let reportFilter="open";
 function viewReports(){
   const isCrew=ROLE==="crew";
-  let list=DB.reports.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(isCrew) list=list.filter(r=>r.reporter==="You"||r.anon||true); // crew sees pool but mainly theirs
-  if(!isCrew && reportFilter!=="all") list=list.filter(r=>r.status===reportFilter);
-  const counts=s=>DB.reports.filter(r=>s==="all"||r.status===s).length;
-  const tabs=isCrew?"":`<div class="pill-tabs">
-    ${["all","Open","Triage","Under Investigation","Closed"].map(s=>
-      `<button class="${reportFilter===s?'active':''}" onclick="reportFilter='${s}';route('report')">${s==='all'?'All':s} <b>${counts(s)}</b></button>`).join("")}
-  </div>`;
+  if(isCrew){
+    const me=currentUser()?currentUser().name:"";
+    const mine=DB.reports.filter(r=>r.reporter===me).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    return `
+    <div class="panel" style="background:linear-gradient(120deg,#1d5fb8,#2f7de1);border:none">
+      <h3 style="color:#fff;margin:0">See something? Say something.</h3>
+      <p style="color:#dce8fb;max-width:600px">Reports are open by default so we can follow up with you — or submit anonymously. Honest, good-faith reporting is never punished under our Just Culture policy.</p>
+      <button class="btn" style="background:#fff;color:#1d5fb8;border:none;font-weight:700" onclick="openReportForm()">＋ Submit a Safety Report</button>
+    </div>
+    <div class="panel" style="padding:0;overflow:hidden;margin-top:16px">
+      <div class="section-head" style="padding:14px 16px 0"><h3 style="margin:0">My reports</h3></div>
+      ${mine.length?reportTable(mine,true):"<div class='empty'>You haven't submitted any reports yet.</div>"}
+    </div>`;
+  }
+  const tabs=[["all","All"],["open","Open"],["new","New"],["investigation","Investigation"],["action","Action"],["closed","Closed"]];
+  let list=DB.reports.filter(RFILTER[reportFilter]).sort((a,b)=>new Date(b.date)-new Date(a.date));
   return `
-  <div class="section-head">
-    <h2>${isCrew?"Submit & track your reports":"Air Safety Report queue"}</h2><div class="sp"></div>
-    <button class="btn primary" onclick="openReportForm()">＋ New Safety Report</button>
+  <div class="section-head"><h2>Safety Report Register</h2><div class="sp"></div>
+    <button class="btn primary" onclick="openReportForm()">＋ New Safety Report</button></div>
+  <div class="pill-tabs">
+    ${tabs.map(([k,lbl])=>`<button class="${reportFilter===k?'active':''}" onclick="reportFilter='${k}';route('report')">${lbl} <b>${DB.reports.filter(RFILTER[k]).length}</b></button>`).join("")}
   </div>
-  ${isCrew?`<div class="panel" style="background:var(--panel2)"><b>Just Culture reminder:</b> Reports are confidential and non-punitive. Honest reporting of hazards and errors will not result in disciplinary action.</div>`:""}
-  ${tabs}
   <div class="panel" style="padding:0;overflow:hidden">
     ${list.length?reportTable(list):"<div class='empty'>No reports in this view.</div>"}
   </div>`;
 }
 function reportTable(list,compact){
   return `<table><thead><tr>
-    <th>ID</th><th>Title</th><th>Type</th>${compact?"":"<th>Reporter</th>"}<th>Risk</th><th>Status</th><th>Reported</th>
+    <th>ID</th><th>Report</th>${compact?"":"<th>Reporter</th>"}<th>Risk</th><th>Stage</th><th>Reported</th>
   </tr></thead><tbody>
   ${list.map(r=>`<tr class="clickrow" onclick="openReport('${r.id}')">
     <td><b>${r.id}</b></td>
-    <td>${r.title} ${r.linkedHazard?`<span class="chip blue" title="Linked to hazard">⚠ ${r.linkedHazard}</span>`:""}</td>
-    <td><span class="chip gray">${r.type}</span></td>
-    ${compact?"":`<td>${r.anon?'<span class="muted">Anonymous</span>':r.reporter}</td>`}
-    <td>${r.rL?bandChip(r.rL,r.rS):'<span class="muted">—</span>'}</td>
+    <td>${r.title}<div class="small muted">${reportCat(r)}${r.linkedHazard?` · ⚠ ${r.linkedHazard}`:""}</div></td>
+    ${compact?"":`<td class="small">${r.anon?'<span class="muted">Anonymous</span>':r.reporter}</td>`}
+    <td>${r.rL?bandChip(r.rL,r.rS):'<span class="muted small">unrated</span>'}</td>
     <td>${statusChip(r.status)}</td>
     <td class="small muted">${fmtDate(r.date)}</td>
   </tr>`).join("")}
   </tbody></table>`;
 }
 
+/* ---- intake form ----
+   Frontline-first: a fast core (type + what happened + confidentiality) that
+   submits in seconds. Everything else is optional, behind "Add details". */
 function openReportForm(){
-  modal("Submit Safety Report", `
-    <div class="field"><label>Report title *</label><input id="r_title" placeholder="e.g. Unstable approach into KTEB rwy 06"></div>
-    <div class="f2">
-      <div class="field"><label>Report type</label><select id="r_type">
-        <option>Hazard</option><option>Occurrence / Event</option><option>Near-miss</option>
-        <option>Procedure concern</option><option>FOD</option><option>Fatigue</option><option>Maintenance</option><option>Other</option>
-      </select></div>
-      <div class="field"><label>Date of event</label><input type="date" id="r_date" value="${today()}"></div>
+  const me=currentUser()?currentUser().name:"";
+  modal("Submit a Safety Report", `
+    <div class="banner info">Quick is fine — just tell us what happened and submit. No categories to pick. Add details only if you have them. We want the hazard, not blame.</div>
+
+    <div class="field"><label>What happened? *</label><textarea id="r_desc" style="min-height:100px" placeholder="In your own words — what you saw and the conditions at the time."></textarea></div>
+    <div class="field" style="max-width:220px"><label>When</label><input type="date" id="r_date" value="${today()}"></div>
+
+    <div class="panel" style="background:var(--panel2);padding:12px 14px">
+      <div class="field" style="margin:0"><label>Your name</label>
+        <div class="row" style="gap:10px">
+          <input id="r_name" value="${me}" placeholder="Your name" style="flex:1">
+          <label class="small" style="display:flex;align-items:center;gap:6px;font-weight:500;white-space:nowrap"><input type="checkbox" id="r_anon" style="width:auto" onchange="document.getElementById('r_name').disabled=this.checked;document.getElementById('r_name').style.opacity=this.checked?'.4':'1'">Submit anonymously</label>
+        </div>
+        <label class="small" style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:500"><input type="checkbox" id="r_contact" checked style="width:auto">OK to contact me for follow-up</label>
+      </div>
     </div>
-    <div class="f3">
-      <div class="field"><label>Location / Flight</label><input id="r_loc" placeholder="e.g. KTEB / N300MJ"></div>
-      <div class="field"><label>Phase</label><select id="r_phase">
-        <option>Ground</option><option>Taxi</option><option>Takeoff</option><option>Climb</option>
-        <option>Cruise</option><option>Descent</option><option>Approach</option><option>Landing</option><option>Maintenance</option></select></div>
-      <div class="field"><label>Department</label><select id="r_dept">
-        <option>Flight Ops</option><option>Maintenance</option><option>Cabin</option><option>Dispatch / Sched</option><option>Ground Handling</option></select></div>
-    </div>
-    <div class="field"><label>Description — what happened? *</label><textarea id="r_desc" placeholder="Factual account. What did you observe? What were the conditions and contributing factors?"></textarea></div>
-    <div class="field"><label>Suggested mitigation (optional)</label><textarea id="r_sug" placeholder="Your idea to prevent recurrence"></textarea></div>
-    <div class="f2">
-      <div class="field"><label>Reporter name</label><input id="r_name" value="${currentUser()?currentUser().name:''}" placeholder="Your name"></div>
-      <div class="field"><label>Confidentiality</label><select id="r_anon">
-        <option value="named">Named (allows follow-up)</option>
-        <option value="anon">Submit anonymously</option></select></div>
+
+    <button type="button" class="btn ghost sm" style="margin:6px 0" onclick="var d=document.getElementById('r_more');var o=d.classList.toggle('hidden');this.textContent=(o?'＋ Add details (optional)':'– Hide details');">＋ Add details (optional)</button>
+    <div id="r_more" class="hidden">
+      <div class="field"><label>Short title</label><input id="r_title" placeholder="Auto-generated from your description if left blank"></div>
+      <div class="f3">
+        <div class="field"><label>Time (local)</label><input type="time" id="r_time"></div>
+        <div class="field"><label>Phase</label><select id="r_phase"><option value=""></option>${RPT_PHASES.map(p=>`<option>${p}</option>`).join("")}</select></div>
+        <div class="field"><label>Department</label><select id="r_dept"><option value=""></option>${RPT_DEPTS.map(d=>`<option>${d}</option>`).join("")}</select></div>
+      </div>
+      <div class="f3">
+        <div class="field"><label>Location / airport</label><input id="r_loc" placeholder="e.g. KTEB"></div>
+        <div class="field"><label>Flight #</label><input id="r_flight" placeholder="e.g. MJ214"></div>
+        <div class="field"><label>Aircraft tail</label><input id="r_tail" placeholder="e.g. N300MJ"></div>
+      </div>
+      <div class="field"><label>Conditions</label><input id="r_cond" placeholder="e.g. Night, light rain, gusty"></div>
+      <div class="field"><label>Contributing factors (select any)</label>
+        <div class="row" style="gap:8px 14px">
+          ${RPT_FACTORS.map((f,i)=>`<label class="small" style="display:flex;align-items:center;gap:5px;font-weight:500;width:auto"><input type="checkbox" id="rf_${i}" value="${f}" style="width:auto">${f}</label>`).join("")}
+        </div></div>
+      <div class="f2">
+        <div class="field"><label>How serious could this have been?</label><select id="r_sev">
+          <option value="">Not sure</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="field"><label>Suggested fix</label><input id="r_sug" placeholder="Your idea to prevent recurrence"></div>
+      </div>
     </div>
   `, `<button class="btn ghost" onclick="closeModal()">Cancel</button>
       <button class="btn primary" onclick="submitReport()">Submit report</button>`, true);
 }
 function submitReport(){
-  const title=val("r_title"),desc=val("r_desc");
-  if(!title||!desc){toast("Title and description are required");return;}
-  const anon=val("r_anon")==="anon";
-  const r={id:"SR-"+ (1000+DB.seq.report++), title, type:val("r_type"), date:val("r_date"),
-    location:val("r_loc"), phase:val("r_phase"), dept:val("r_dept"), desc, suggestion:val("r_sug"),
-    reporter:anon?"":(val("r_name")||"Unknown"), anon, status:"Open", rL:null, rS:null,
-    linkedHazard:null, classification:"", invNotes:"",
-    log:[{d:today(),who:anon?"Anonymous":(val("r_name")||"Reporter"),text:"Report submitted"}]};
+  const desc=val("r_desc");
+  if(!desc){toast("Just tell us what happened, then submit");return;}
+  // title is optional — auto-derive from the description if blank
+  let title=val("r_title");
+  if(!title){title=desc.split(/[.\n]/)[0].slice(0,70).trim()+(desc.length>70?"…":"");}
+  const anonEl=document.getElementById("r_anon");
+  const anon=!!(anonEl&&anonEl.checked);
+  const factors=RPT_FACTORS.map((f,i)=>document.getElementById("rf_"+i)).filter(e=>e&&e.checked).map(e=>e.value);
+  const who=anon?"Anonymous":(val("r_name")||"Unknown");
+  const r={id:"SR-"+(1000+DB.seq.report++), title, desc, date:val("r_date"), time:val("r_time"),
+    location:val("r_loc"), flight:val("r_flight"), tail:val("r_tail"), phase:val("r_phase"),
+    dept:val("r_dept"), conditions:val("r_cond"), factors, reporterSeverity:val("r_sev"),
+    suggestion:val("r_sug"), reporter:anon?"":who, anon,
+    contactOk:!anon&&(document.getElementById("r_contact")||{}).checked,
+    status:"Submitted", rL:null, rS:null, classification:"", cictt:"", invNotes:"", feedback:"",
+    linkedHazard:null, linkedFinding:null,
+    log:[{d:today(),who,text:"Report submitted"}]};
   DB.reports.unshift(r); audit("Submitted safety report",r.id+" — "+r.title); save(); closeModal();
-  toast("Report "+r.id+" submitted — thank you");
-  route("report");
+  toast("Report "+r.id+" submitted — thank you"); route("report");
 }
 
+/* ---- report detail & workflow ---- */
+function stageBar(r){
+  const i=RPT_FLOW.indexOf(r.status);
+  return `<div class="row" style="gap:4px;flex-wrap:wrap;margin-bottom:6px">
+    ${RPT_FLOW.map((s,n)=>`<span class="chip ${n<i?'green':n===i?'blue':'gray'}" style="font-size:10.5px">${n<i?'✓ ':''}${s}</span>`).join('<span class="muted">›</span>')}
+  </div>`;
+}
 function openReport(id){
   const r=DB.reports.find(x=>x.id===id); if(!r)return;
   const isMgr=canEdit();
+  const next=isMgr?reportNextAction(r):null;
   const body=`
-    <div class="kv" style="margin-bottom:16px">
+    ${stageBar(r)}
+    <div class="kv" style="margin:14px 0 16px">
       <div class="k">Report ID</div><div><b>${r.id}</b> ${statusChip(r.status)}</div>
-      <div class="k">Type</div><div>${r.type}</div>
-      <div class="k">Event date</div><div>${fmtDate(r.date)}</div>
-      <div class="k">Location / Phase</div><div>${r.location||"—"} · ${r.phase||"—"}</div>
-      <div class="k">Department</div><div>${r.dept||"—"}</div>
-      <div class="k">Reporter</div><div>${r.anon?'<span class="muted">Anonymous (confidential)</span>':r.reporter}</div>
-      ${r.rL?`<div class="k">Risk assessment</div><div>${bandChip(r.rL,r.rS)} ${riskBand(r.rL,r.rS).label}</div>`:""}
-      ${r.classification?`<div class="k">Classification</div><div>${r.classification}</div>`:""}
+      <div class="k">Category</div><div>${r.cictt?cicttLabel(r.cictt):""}${r.cictt&&r.classification?" · ":""}${r.classification||(r.cictt?"":'<span class="muted">Uncategorized — set at triage</span>')}</div>
+      <div class="k">Event</div><div>${fmtDate(r.date)}${r.time?" · "+r.time:""}${r.phase?" · "+r.phase:""}</div>
+      <div class="k">Where</div><div>${[r.location,r.flight,r.tail].filter(Boolean).join(" · ")||"—"}</div>
+      <div class="k">Department</div><div>${r.dept||"—"}${r.conditions?" · "+r.conditions:""}</div>
+      <div class="k">Reporter</div><div>${r.anon?'<span class="muted">Anonymous</span>':(r.reporter+(r.contactOk?' <span class="chip green small">contact OK</span>':' <span class="chip gray small">no contact</span>'))}</div>
+      ${r.reporterSeverity?`<div class="k">Reporter's severity</div><div>${r.reporterSeverity}</div>`:""}
+      ${r.rL?`<div class="k">Assessed risk</div><div>${bandChip(r.rL,r.rS)} ${riskBand(r.rL,r.rS).label}${r.classification?" · "+r.classification:""}</div>`:""}
       ${r.linkedHazard?`<div class="k">Linked hazard</div><div><a onclick="closeModal();route('hazards');setTimeout(()=>openHazard('${r.linkedHazard}'),60)">${r.linkedHazard} →</a></div>`:""}
     </div>
-    <div class="field"><label>Description</label><div class="card">${r.desc}</div></div>
-    ${r.suggestion?`<div class="field"><label>Reporter's suggested mitigation</label><div class="card">${r.suggestion}</div></div>`:""}
+    <div class="field"><label>What happened</label><div class="card">${r.desc}</div></div>
+    ${r.factors&&r.factors.length?`<div class="field"><label>Contributing factors</label><div class="row" style="gap:6px">${r.factors.map(f=>`<span class="chip gray">${f}</span>`).join("")}</div></div>`:""}
+    ${r.suggestion?`<div class="field"><label>Reporter's suggested action</label><div class="card">${r.suggestion}</div></div>`:""}
+    ${r.feedback?`<div class="field"><label>Feedback sent to reporter</label><div class="card" style="border-left:3px solid var(--accent)">${r.feedback}</div></div>`:""}
     ${isMgr?managerReportPanel(r):""}
     <div class="field"><label>Activity log</label><div class="timeline" style="margin-top:8px">
       ${r.log.map(l=>`<div class="tl"><div>${l.text}</div><div class="when">${fmtDate(l.d)} · ${l.who}</div></div>`).join("")}
     </div></div>`;
   const foot=isMgr?`
     <button class="btn ghost" onclick="closeModal()">Close</button>
-    ${r.status!=="Closed"?`<button class="btn" onclick="advanceReport('${r.id}')">Advance status →</button>`:""}
-    ${r.status!=="Closed"&&!r.linkedHazard?`<button class="btn primary" onclick="escalateToHazard('${r.id}')">Escalate to hazard</button>`:""}
+    <select class="btn" onchange="setReportStatus('${r.id}',this.value)" title="Set stage">
+      ${RPT_FLOW.map(s=>`<option ${r.status===s?'selected':''}>${s}</option>`).join("")}</select>
+    ${r.status!=="Closed"&&!r.linkedHazard?`<button class="btn" onclick="escalateToHazard('${r.id}')">Escalate to hazard</button>`:""}
+    ${next?`<button class="btn primary" onclick="${next.fn}">${next.label}</button>`:""}
   `:`<button class="btn ghost" onclick="closeModal()">Close</button>`;
   modal("Safety Report · "+r.id, body, foot, true);
 }
+function reportNextAction(r){
+  switch(r.status){
+    case "Submitted": return {fn:`acknowledgeReport('${r.id}')`,label:"Acknowledge receipt"};
+    case "Risk Assessed": return {fn:`setReportStatus('${r.id}','Investigation')`,label:"Open investigation"};
+    case "Investigation": return {fn:`setReportStatus('${r.id}','Corrective Action')`,label:"Move to corrective action"};
+    case "Corrective Action": return r.anon
+      ? {fn:`closeReport('${r.id}')`,label:"Close report"}
+      : {fn:`openFeedbackForm('${r.id}')`,label:"Send feedback to reporter"};
+    case "Feedback to Reporter": return {fn:`closeReport('${r.id}')`,label:"Close report"};
+    default: return null; // Acknowledged → use the risk-assessment panel
+  }
+}
 function managerReportPanel(r){
   return `<div class="panel" style="background:var(--panel2);margin:6px 0 14px">
-    <h4>Triage & risk assessment</h4>
-    <div class="f3">
+    <h4>Triage — categorize &amp; assess risk</h4>
+    <div class="f2">
+      <div class="field"><label>Functional area</label><select id="t_cls">
+        ${[""].concat(RPT_CLASS).map(c=>`<option ${r.classification===c?'selected':''}>${c}</option>`).join("")}</select></div>
+      <div class="field"><label>CICTT occurrence category</label><select id="t_cictt">
+        <option value="">— select —</option>
+        ${CICTT.map(([code,desc])=>`<option value="${code}" ${r.cictt===code?'selected':''}>${code} — ${desc}</option>`).join("")}</select></div>
+    </div>
+    <div class="f2">
       <div class="field"><label>Likelihood</label><select id="t_L">
         ${[5,4,3,2,1].map(n=>`<option value="${n}" ${r.rL==n?'selected':''}>${n} · ${LLABELS[5-n]}</option>`).join("")}</select></div>
       <div class="field"><label>Severity</label><select id="t_S">
         ${SCODES.map((c,i)=>`<option value="${i}" ${r.rS==i?'selected':''}>${c} · ${SLABELS[i]}</option>`).join("")}</select></div>
-      <div class="field"><label>Classification</label><select id="t_cls">
-        ${["","Flight Ops","Airworthiness","Ground Ops","Human Factors","Procedural","Environmental"].map(c=>`<option ${r.classification===c?'selected':''}>${c}</option>`).join("")}</select></div>
     </div>
-    <div class="field"><label>Investigation notes</label><textarea id="t_notes">${r.invNotes||""}</textarea></div>
-    <button class="btn sm primary" onclick="saveTriage('${r.id}')">Save assessment</button>
+    <div class="field"><label>Investigation / triage notes</label><textarea id="t_notes">${r.invNotes||""}</textarea></div>
+    <div class="row"><button class="btn sm primary" onclick="saveTriage('${r.id}')">Save triage</button>
+      <button class="btn sm" onclick="aiSuggest('${r.id}')" title="Suggest a category from the report text">✨ Suggest category</button></div>
   </div>`;
 }
 function saveTriage(id){
   const r=DB.reports.find(x=>x.id===id);
-  r.rL=+val("t_L"); r.rS=+val("t_S"); r.classification=val("t_cls"); r.invNotes=val("t_notes");
-  if(r.status==="Open")r.status="Triage";
+  r.rL=+val("t_L"); r.rS=+val("t_S"); r.classification=val("t_cls"); r.cictt=val("t_cictt"); r.invNotes=val("t_notes");
+  if(r.status==="Submitted"||r.status==="Acknowledged")r.status="Risk Assessed";
   r.log.unshift({d:today(),who:currentUser().name,text:`Risk assessed ${r.rL}${SCODES[r.rS]} (${riskBand(r.rL,r.rS).label})`});
   audit("Assessed report risk",r.id+" → "+r.rL+SCODES[r.rS]);
-  save();toast("Assessment saved");openReport(id);
+  save();toast("Assessment saved");openReport(id);buildNav();
 }
-function advanceReport(id){
+function acknowledgeReport(id){
+  const r=DB.reports.find(x=>x.id===id); r.status="Acknowledged";
+  r.log.unshift({d:today(),who:currentUser().name,text:r.anon?"Report acknowledged (anonymous — no receipt sent)":"Receipt acknowledged to reporter"});
+  audit("Acknowledged report",id); save();toast("Acknowledged");openReport(id);buildNav();
+}
+function setReportStatus(id,s){
+  const r=DB.reports.find(x=>x.id===id); if(r.status===s)return; r.status=s;
+  r.log.unshift({d:today(),who:currentUser().name,text:"Stage → "+s});
+  audit("Changed report stage",id+" → "+s); save();toast("Report: "+s);openReport(id);buildNav();
+}
+function openFeedbackForm(id){
   const r=DB.reports.find(x=>x.id===id);
-  const flow=["Open","Triage","Under Investigation","Closed"];
-  const i=flow.indexOf(r.status); r.status=flow[Math.min(i+1,flow.length-1)];
-  r.log.unshift({d:today(),who:currentUser().name,text:"Status → "+r.status});
-  audit("Changed report status",r.id+" → "+r.status);
-  save();toast("Report "+r.status);openReport(id);buildNav();
+  if(r.anon){toast("Anonymous report — no reporter to notify");return;}
+  modal("Feedback to reporter · "+id,`
+    <div class="banner info">Closing the loop. Let ${r.reporter} know what was found and what action was taken — this is what sustains a reporting culture.</div>
+    <div class="field"><label>Message to reporter</label><textarea id="fb_text" style="min-height:120px" placeholder="Thank you for reporting. Here's what we found and the action taken…">${r.feedback||""}</textarea></div>
+  `,`<button class="btn ghost" onclick="closeModal()">Cancel</button>
+     <button class="btn primary" onclick="sendFeedback('${id}')">Send feedback</button>`);
+}
+function sendFeedback(id){
+  const r=DB.reports.find(x=>x.id===id); const t=val("fb_text");
+  if(!t){toast("Enter a message");return;}
+  r.feedback=t; r.status="Feedback to Reporter";
+  r.log.unshift({d:today(),who:currentUser().name,text:"Feedback sent to reporter"});
+  audit("Sent feedback to reporter",id); save();closeModal();toast("Feedback sent");openReport(id);buildNav();
+}
+function closeReport(id){
+  const r=DB.reports.find(x=>x.id===id); r.status="Closed";
+  r.log.unshift({d:today(),who:currentUser().name,text:"Report closed"});
+  audit("Closed report",id); save();toast("Report closed");openReport(id);buildNav();
 }
 function escalateToHazard(id){
   const r=DB.reports.find(x=>x.id===id);
@@ -869,7 +1038,7 @@ function escalateToHazard(id){
     category:r.classification||"Flight Ops", owner:DB.org.sm, opened:today(), status:"Mitigating",
     description:r.desc, consequence:"", iL:r.rL||4, iS:r.rS!=null?r.rS:2, rL:r.rL||4, rS:r.rS!=null?r.rS:2,
     mitigations:[], reviewDate:addDays(today(),90)};
-  DB.hazards.unshift(h); r.linkedHazard=h.id; r.status="Under Investigation";
+  DB.hazards.unshift(h); r.linkedHazard=h.id; if(RPT_FLOW.indexOf(r.status)<RPT_FLOW.indexOf("Investigation"))r.status="Investigation";
   r.log.unshift({d:today(),who:currentUser().name,text:"Escalated to hazard "+h.id});
   audit("Escalated report to hazard",r.id+" → "+h.id);
   save();toast("Created hazard "+h.id);closeModal();route("hazards");setTimeout(()=>openHazard(h.id),80);
@@ -1901,26 +2070,26 @@ function seed(){
         location:"KTEB / N300MJ",phase:"Approach",dept:"Flight Ops",
         desc:"On RNAV approach the aircraft was above glidepath and fast through 1000ft AGL due to a late descent clearance and tailwind. Crew correctly executed a go-around. Second approach was stable and uneventful.",
         suggestion:"Reinforce 1000ft stabilized-approach gate briefing for high-density Teterboro arrivals.",
-        reporter:"",anon:true,status:"Under Investigation",rL:3,rS:2,classification:"Flight Ops",
+        reporter:"",anon:true,status:"Investigation",rL:3,rS:2,classification:"Flight Ops",cictt:"ARC",
         linkedHazard:"HZ-205",invNotes:"FDM data pulled; consistent with report. Reviewing approach briefing SOP.",
         log:[{d:ago(3),who:"Anonymous",text:"Report submitted"},{d:ago(2),who:"Safety Manager",text:"Risk assessed 3C (Tolerable)"},{d:ago(1),who:"Safety Manager",text:"Escalated to hazard HZ-205"}]},
       {id:"SR-1005",title:"Tug strike near miss on ramp during pushback",type:"Near-miss",date:ago(5),
         location:"KHOU FBO",phase:"Ground",dept:"Ground Handling",
         desc:"Wing walker lost sight of tug driver during pushback in low light; aircraft winglet came within ~2 ft of a parked vehicle before pushback halted.",
         suggestion:"Hi-vis required and standardized hand signals after sunset.",
-        reporter:"M. Chen",anon:false,status:"Open",rL:null,rS:null,classification:"",linkedHazard:null,invNotes:"",
+        reporter:"M. Chen",anon:false,status:"Submitted",rL:null,rS:null,classification:"",linkedHazard:null,invNotes:"",
         log:[{d:ago(5),who:"M. Chen",text:"Report submitted"}]},
       {id:"SR-1007",title:"Cabin door warning intermittent after catering",type:"Occurrence / Event",date:ago(1),
         location:"KDAL / N512MJ",phase:"Ground",dept:"Cabin",
         desc:"Forward cabin door warning illuminated intermittently on ground after catering; resolved after reseating door. No dispatch impact.",
         suggestion:"Have maintenance inspect door microswitch.",
-        reporter:"",anon:true,status:"Open",rL:null,rS:null,classification:"",linkedHazard:null,invNotes:"",
+        reporter:"",anon:true,status:"Submitted",rL:null,rS:null,classification:"",linkedHazard:null,invNotes:"",
         log:[{d:ago(1),who:"Anonymous",text:"Report submitted"}]},
       {id:"SR-1004",title:"Fatigue on third back-of-clock leg",type:"Fatigue",date:ago(9),
         location:"KLAS-KMIA",phase:"Cruise",dept:"Flight Ops",
         desc:"Single crew duty extended to 13.5h across three legs with a 0200 local departure. Reporting captain noted micro-sleep risk on final cruise segment.",
         suggestion:"Review FRMS thresholds for back-of-clock multi-leg duties.",
-        reporter:"",anon:true,status:"Under Investigation",rL:4,rS:2,classification:"Human Factors",linkedHazard:"HZ-201",invNotes:"Cross-referencing scheduling data for the quarter.",
+        reporter:"",anon:true,status:"Investigation",rL:4,rS:2,classification:"Human Factors",cictt:"OTHR",linkedHazard:"HZ-201",invNotes:"Cross-referencing scheduling data for the quarter.",
         log:[{d:ago(9),who:"Anonymous",text:"Report submitted"},{d:ago(8),who:"Safety Manager",text:"Risk assessed 4C; linked to HZ-201"}]},
       {id:"SR-1003",title:"GPWS 'TERRAIN' caution on departure, KASE",type:"Occurrence / Event",date:ago(14),
         location:"KASE",phase:"Climb",dept:"Flight Ops",
