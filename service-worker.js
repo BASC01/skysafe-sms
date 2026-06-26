@@ -1,7 +1,7 @@
 /* SkySafe SMS — service worker
    Caches the app shell so it runs fully offline once installed.
    Bump CACHE on each release to refresh cached assets. */
-const CACHE = "skysafe-sms-v1";
+const CACHE = "skysafe-sms-v3";
 const ASSETS = [
   "./",
   "./index.html",
